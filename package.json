@@ -13,12 +13,10 @@
     "prettier:fix": "prettier --write \"src/**/(*.tsx|*.ts|*.css|*.scss)\""
   },
   "dependencies": {
-    "@ant-design/icons": "^5.6.1",
     "@casl/ability": "^6.7.1",
     "@hookform/resolvers": "^3.3.4",
     "@tanstack/match-sorter-utils": "^8.15.1",
-    "@tanstack/react-table": "^8.16.0",
-    "antd": "^5.24.2",
+    "@tanstack/react-table": "^8.21.2",
     "axios": "^1.6.8",
     "bootstrap": "^5.3.3",
     "chroma-js": "^3.0.0",

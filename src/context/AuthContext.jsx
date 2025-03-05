@@ -67,7 +67,7 @@ export const AuthProvider = ({ children }) => {
   const location = useLocation()
 
   useEffect(() => {
-    dispatch(init({ isAuthenticated: true, user: {username: 'Faker login'} }))
+    dispatch(init({ isAuthenticated: true, user: {username: 'Admin'} }))
     // const checkTokens = async () => {
     //   setIsLoading(true)
     //   const accessToken = getToken()
