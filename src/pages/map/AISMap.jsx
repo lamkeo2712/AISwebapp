@@ -1,11 +1,10 @@
-import React, { useEffect, useRef, useState } from "react"
-import { Container } from "reactstrap"
 import Feature from "ol/Feature"
 import Map from "ol/Map"
 import Overlay from "ol/Overlay"
 import View from "ol/View"
-import Point from "ol/geom/Point"
+import { GeoJSON } from "ol/format"
 import LineString from "ol/geom/LineString"
+import Point from "ol/geom/Point"
 import TileLayer from "ol/layer/Tile"
 import VectorLayer from "ol/layer/Vector"
 import "ol/ol.css"
@@ -13,103 +12,227 @@ import { fromLonLat } from "ol/proj"
 import OSM from "ol/source/OSM"
 import VectorSource from "ol/source/Vector"
 import { Fill, Icon, Stroke, Style } from "ol/style"
-import { GeoJSON } from "ol/format"
-import hoangSa from "./data/HoangSa.json"
-import truongSa from "./data/TruongSa.json"
-import offshore from "./data/Offshore.json"
-import vtTau1 from "./data/Tau1.json"
-import vtTau2 from "./data/Tau2.json"
-import vtTau3 from "./data/Tau3.json"
+import React, { useEffect, useRef, useState, useCallback, useMemo, memo } from "react"
+import { Button, Card, CardBody, Col, Container, ListGroup, ListGroupItem, Row, Spinner } from "reactstrap"
+import { toast } from "react-toastify"
+import { vesselTypes } from "../../helpers/constants"
+import { vesselService } from "../../services/vessel-service"
 
+// Import map data
+import hoangSa from "./data/HoangSa.json"
+import offshore from "./data/Offshore.json"
+import truongSa from "./data/TruongSa.json"
+import Select from "react-select"
+// Constants
 const INITIAL_CENTER = [107.5698, 16.4637]
 const INITIAL_ZOOM = 6
 
+const MAP_STYLES = {
+  boundary: new Style({
+    fill: new Fill({ color: "rgba(87, 207, 243, 0.6)" }),
+    stroke: new Stroke({ color: "rgba(87, 207, 243, 0.7)", width: 2 })
+  }),
+  offshore: new Style({
+    stroke: new Stroke({ color: "rgba(31, 124, 247, 0.7)", width: 2 })
+  })
+}
+
 const createVesselFeature = (vessel) => {
-  const lastPoint = vessel.points[vessel.points.length - 1]
+  console.log(vessel)
   const feature = new Feature({
-    geometry: new Point(fromLonLat([lastPoint.longitude, lastPoint.latitude])),
-    name: vessel.name,
-    points: vessel.points,
-    type: 'vessel'
+    geometry: new Point(fromLonLat([vessel.Longitude, vessel.Latitude])),
+    type: "vessel",
+    data: vessel
   })
 
-  feature.setStyle(new Style({
-    image: new Icon({
-      src: `src/assets/images/arrow/${vessel.color}.png`,
-      scale: 0.4
+  const vesselType = vesselTypes.find((type) => type.type == vessel.ShipType)
+  console.log(vesselType)
+  feature.setStyle(
+    new Style({
+      image: new Icon({
+        src: `src/assets/images/vessel/${vesselType?.name || "UnspecifiedShips"}.png`,
+        scale: 0.8
+      })
     })
-  }))
+  )
 
   return feature
 }
 
 const createPathFeatures = (points) => {
-  if (!points) return []
+  if (!points?.length) return []
 
   const lineFeature = new Feature({
-    geometry: new LineString(points.map(point => fromLonLat([point.longitude, point.latitude]))),
-    type: 'path'
+    geometry: new LineString(points.map((point) => fromLonLat([point.longitude, point.latitude]))),
+    type: "path"
   })
 
-  lineFeature.setStyle(new Style({
-    stroke: new Stroke({ color: "rgba(31, 124, 247, 0.7)", width: 2, lineDash: [10, 10] })
-  }))
+  lineFeature.setStyle(
+    new Style({
+      stroke: new Stroke({ color: "#3388ff", width: 2, lineDash: [10, 10] })
+    })
+  )
 
   const startFeature = new Feature({
     geometry: new Point(fromLonLat([points[0].longitude, points[0].latitude])),
-    type: 'path'
+    type: "path"
   })
 
-  startFeature.setStyle(new Style({
-    image: new Icon({
-      src: `src/assets/images/arrow/green.png`,
-      scale: 0.4
+  startFeature.setStyle(
+    new Style({
+      image: new Icon({
+        src: `src/assets/images/vessel/star.png`,
+        scale: 0.1
+      })
     })
-  }))
+  )
 
   return [lineFeature, startFeature]
 }
+
+const InfoPanel = memo(({ isPanelOpen, selectedVessel, getVesselRoute, isLoading }) => (
+  <div
+    id="infoPanel"
+    className="info-panel"
+    style={{
+      right: isPanelOpen ? 0 : "-24%"
+    }}
+  >
+    <h4>Thông tin tàu</h4>
+    <ListGroup>
+      <ListGroupItem>
+        <b>Name: </b> {selectedVessel?.VesselName}
+      </ListGroupItem>
+      <ListGroupItem>
+        <b>MMSI: </b> {selectedVessel?.MMSI}
+      </ListGroupItem>
+      <ListGroupItem>
+        <b>IMO: </b> {selectedVessel?.IMONumber}
+      </ListGroupItem>
+      <ListGroupItem>
+        <b>Call sign: </b> {selectedVessel?.CallSign}
+      </ListGroupItem>
+      <ListGroupItem>
+        <b>Latitude/Longitude: </b> {selectedVessel?.Latitude}/ {selectedVessel?.Longitude}
+      </ListGroupItem>
+      <ListGroupItem>
+        <b>Destination: </b> {selectedVessel?.Destination}
+      </ListGroupItem>
+      <ListGroupItem>
+        <b>ShipLength: </b> {selectedVessel?.ShipLength}
+      </ListGroupItem>
+      <ListGroupItem>
+        <b>ShipWidth: </b> {selectedVessel?.ShipWidth}
+      </ListGroupItem>
+    </ListGroup>
+    <div className="text-center">
+      <Button
+        className="mt-2 d-inline-flex align-items-center justify-content-center"
+        color="primary"
+        onClick={() => getVesselRoute(selectedVessel?.MMSI)}
+        disabled={!selectedVessel?.MMSI || isLoading}
+      >
+        {isLoading && <Spinner size="sm" className="me-2" />}
+        Xem hành trình
+      </Button>
+    </div>
+  </div>
+))
+
+const ControlButton = memo(({ isPanelOpen, setIsPanelOpen }) => (
+  <Button
+    className="control-button"
+    onClick={() => setIsPanelOpen(!isPanelOpen)}
+    style={{
+      right: isPanelOpen ? "calc(26% - 20px)" : "20px",
+      transform: `translateY(-50%) rotate(${isPanelOpen ? "0deg" : "180deg"})`
+    }}
+    onMouseEnter={(e) => (e.currentTarget.style.background = "#0056b3")}
+    onMouseLeave={(e) => (e.currentTarget.style.background = "#007bff")}
+  >
+    <span style={{ color: "white", fontSize: "20px", transform: "translateX(1px)" }}>➤</span>
+  </Button>
+))
 
 const AISMap = () => {
   document.title = "Bản đồ tàu thuyền"
 
   const mapRef = useRef()
   const overlayRef = useRef()
+  const mapInstance = useRef()
+  const [vesselList, setVesselList] = useState([])
   const [isPanelOpen, setIsPanelOpen] = useState(false)
-  const [vesselInfo, setVesselInfo] = useState("Chưa có thông tin tàu nào được chọn.")
   const [selectedVessel, setSelectedVessel] = useState(null)
-  const vectorSource = useRef(new VectorSource()).current
+  const [isLoading, setIsLoading] = useState(false)
 
-  const renderVessels = (vesselList) => {
-    vectorSource.getFeatures()
-      .filter(feature => ['vessel', 'path'].includes(feature.get('type')))
-      .forEach(feature => vectorSource.removeFeature(feature))
+  const vectorSource = useMemo(() => new VectorSource(), [])
 
-    vesselList.forEach(vessel => {
-      vectorSource.addFeature(createVesselFeature(vessel))
-    })
-  }
+  const renderVessels = useCallback(
+    (vessels) => {
+      vectorSource
+        .getFeatures()
+        .filter((feature) => ["vessel", "path"].includes(feature.get("type")))
+        .forEach((feature) => vectorSource.removeFeature(feature))
 
-  const renderPath = (points) => {
-    vectorSource.getFeatures()
-      .filter(feature => feature.get('type') === 'path')
-      .forEach(feature => vectorSource.removeFeature(feature))
+      vessels.forEach((vessel) => {
+        vectorSource.addFeature(createVesselFeature(vessel))
+      })
+    },
+    [vectorSource]
+  )
 
-    createPathFeatures(points).forEach(feature => vectorSource.addFeature(feature))
+  const renderPath = useCallback(
+    (points) => {
+      vectorSource
+        .getFeatures()
+        .filter((feature) => feature.get("type") === "path")
+        .forEach((feature) => vectorSource.removeFeature(feature))
+
+      createPathFeatures(points).forEach((feature) => vectorSource.addFeature(feature))
+    },
+    [vectorSource]
+  )
+
+  const getVesselList = useCallback(async () => {
+    try {
+      const response = await vesselService.getVesselList({})
+      const vessels = response?.DM_Tau?.$values || []
+      setVesselList(vessels)
+      renderVessels(vessels)
+    } catch (error) {
+      console.error("Error fetching vessel list:", error)
+      toast.error("Có lỗi xảy ra khi tải danh sách tàu")
+    }
+  }, [renderVessels])
+
+  const getVesselRoute = async (MMSI) => {
+    if (!MMSI) return
+
+    try {
+      setIsLoading(true)
+      const response = await vesselService.getVesselRoute({ MMSI })
+      const route = response?.DM_HanhTrinh?.$values || []
+      renderPath(route)
+    } catch (error) {
+      console.error("Error fetching vessel route:", error)
+      toast.error("Có lỗi xảy ra khi tải hành trình tàu")
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   useEffect(() => {
+    getVesselList()
+
     const map = new Map({
       target: mapRef.current,
-      layers: [
-        new TileLayer({ source: new OSM() }),
-        new VectorLayer({ source: vectorSource })
-      ],
+      layers: [new TileLayer({ source: new OSM() }), new VectorLayer({ source: vectorSource })],
       view: new View({
         center: fromLonLat(INITIAL_CENTER),
         zoom: INITIAL_ZOOM
       })
     })
+    mapInstance.current = map
 
     const infoOverlay = new Overlay({
       element: document.getElementById("mapInfo"),
@@ -119,139 +242,63 @@ const AISMap = () => {
     map.addOverlay(infoOverlay)
     overlayRef.current = infoOverlay
 
-    const vessels = [
-      { name: "Tàu 1", color: "red", points: vtTau1 },
-      { name: "Tàu 2", color: "blue", points: vtTau2 },
-      { name: "Tàu 3", color: "yellow", points: vtTau3 }
-    ]
-    renderVessels(vessels)
-
     const geojsonFormat = new GeoJSON()
-    const boundaryStyle = new Style({
-      fill: new Fill({ color: "rgba(87, 207, 243, 0.6)" }),
-      stroke: new Stroke({ color: "rgba(87, 207, 243, 0.7)", width: 2 })
-    })
-
-    const offshoreStyle = new Style({
-      stroke: new Stroke({ color: "rgba(31, 124, 247, 0.7)", width: 2 })
-    })
-
     const addFeatures = (data, style) => {
       const features = geojsonFormat.readFeatures(data, { featureProjection: "EPSG:3857" })
-      features.forEach(f => f.setStyle(style))
+      features.forEach((f) => f.setStyle(style))
       vectorSource.addFeatures(features)
     }
 
-    addFeatures(hoangSa, boundaryStyle)
-    addFeatures(truongSa, boundaryStyle)
-    addFeatures(offshore, offshoreStyle)
+    // Add boundary features
+    addFeatures(hoangSa, MAP_STYLES.boundary)
+    addFeatures(truongSa, MAP_STYLES.boundary)
+    addFeatures(offshore, MAP_STYLES.offshore)
 
+    // Handle vessel click
     map.on("singleclick", (event) => {
-      const feature = map.forEachFeatureAtPixel(event.pixel, feat => feat)
-      if (feature?.get('type') === 'vessel') {
-        setVesselInfo(`
-          <div><strong>Tên tàu :</strong> ${feature.get("name")}</div>
-          <div><strong>Destination:</strong> <b>Hải Phòng</b></div>
-          <div><strong>Position received:</strong> <b>1 hour ago</b></div>
-        `)
+      const feature = map.forEachFeatureAtPixel(event.pixel, (feat) => feat)
+      if (feature?.get("type") === "vessel") {
+        setSelectedVessel(feature.get("data"))
         setIsPanelOpen(true)
-        setSelectedVessel(feature.get("points"))
-      } else {
-        setVesselInfo("Chưa có thông tin tàu nào được chọn.")
-        setSelectedVessel(null)
       }
     })
 
     return () => {
       map.setTarget(undefined)
-      overlayRef.current.setPosition(undefined)
+      overlayRef.current?.setPosition(undefined)
     }
-  }, [])
-
-  useEffect(() => {
-    renderPath(selectedVessel)
-  }, [selectedVessel])
+  }, [vectorSource])
 
   return (
     <React.Fragment>
       <div className="page-content">
-        <Container fluid style={{ position: "relative", height: "82vh", overflow: "hidden" }}>
-          <div
-            ref={mapRef}
-            style={{
-              width: "100%",
-              height: "100%",
-              position: "absolute",
-              top: 0,
-              left: 0,
-              zIndex: 1
-            }}
-          />
-          <InfoPanel isPanelOpen={isPanelOpen} vesselInfo={vesselInfo} />
-          <ControlButton isPanelOpen={isPanelOpen} setIsPanelOpen={setIsPanelOpen} />
+        <Container fluid>
+          <Card>
+            <CardBody style={{ position: "relative", height: "87vh", overflow: "hidden" }}>
+              <div
+                ref={mapRef}
+                style={{
+                  width: "100%",
+                  height: "100%",
+                  position: "absolute",
+                  top: 0,
+                  left: 0,
+                  zIndex: 1
+                }}
+              />
+              <InfoPanel
+                isPanelOpen={isPanelOpen}
+                selectedVessel={selectedVessel}
+                getVesselRoute={getVesselRoute}
+                isLoading={isLoading}
+              />
+              <ControlButton isPanelOpen={isPanelOpen} setIsPanelOpen={setIsPanelOpen} />
+            </CardBody>
+          </Card>
         </Container>
       </div>
     </React.Fragment>
   )
 }
-
-const InfoPanel = ({ isPanelOpen, vesselInfo }) => (
-  <div
-    id="infoPanel"
-    style={{
-      position: "absolute",
-      right: isPanelOpen ? 0 : "-18%",
-      top: 0,
-      width: "18%",
-      height: "100%",
-      padding: "15px",
-      backgroundColor: "rgba(249, 249, 249, 0.95)",
-      boxShadow: "-2px 0 8px rgba(0, 0, 0, 0.1)",
-      transition: "right 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
-      zIndex: 2,
-      overflowY: "auto"
-    }}
-  >
-    <h4
-      style={{
-        color: "#007bff",
-        marginBottom: "15px",
-        paddingBottom: "10px",
-        borderBottom: "2px solid #007bff"
-      }}
-    >
-      Thông tin tàu
-    </h4>
-    <div id="vesselInfo" dangerouslySetInnerHTML={{ __html: vesselInfo }} />
-  </div>
-)
-
-const ControlButton = ({ isPanelOpen, setIsPanelOpen }) => (
-  <button
-    onClick={() => setIsPanelOpen(!isPanelOpen)}
-    style={{
-      position: "absolute", 
-      top: "50%",
-      right: isPanelOpen ? "calc(20% - 20px)" : "20px",
-      transform: `translateY(-50%) rotate(${isPanelOpen ? "0deg" : "180deg"})`,
-      background: "#007bff",
-      border: "none",
-      width: "40px",
-      height: "40px",
-      borderRadius: "50%",
-      cursor: "pointer",
-      boxShadow: "0 2px 4px rgba(0, 0, 0, 0.2)",
-      transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
-      zIndex: 3,
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center"
-    }}
-    onMouseEnter={(e) => (e.currentTarget.style.background = "#0056b3")}
-    onMouseLeave={(e) => (e.currentTarget.style.background = "#007bff")}
-  >
-    <span style={{ color: "white", fontSize: "20px", transform: "translateX(1px)" }}>➤</span>
-  </button>
-)
 
 export default AISMap
