@@ -129,7 +129,8 @@ const InfoPanel = memo(({ isPanelOpen, selectedVessel, getVesselRoute, isLoading
       <Button
         className="mt-2 d-inline-flex align-items-center justify-content-center"
         color="primary"
-        onClick={() => getVesselRoute(selectedVessel?.MMSI)}
+        onClick={() => {
+          getVesselRoute(selectedVessel?.MMSI);}}
         disabled={!selectedVessel?.MMSI || isLoading}
       >
         {isLoading && <Spinner size="sm" className="me-2" />}
@@ -196,7 +197,7 @@ const AISMap = () => {
   const getVesselList = useCallback(async () => {
     try {
       const response = await vesselService.getVesselList({})
-      const vessels = response?.DM_Tau?.$values || []
+      const vessels = response?.DM_Tau
       setVesselList(vessels)
       renderVessels(vessels)
     } catch (error) {
