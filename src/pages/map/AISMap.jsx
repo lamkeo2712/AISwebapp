@@ -10,6 +10,7 @@ import VectorLayer from "ol/layer/Vector"
 import "ol/ol.css"
 import { fromLonLat } from "ol/proj"
 import OSM from "ol/source/OSM"
+import { XYZ } from "ol/source"
 import VectorSource from "ol/source/Vector"
 import { Fill, Icon, Stroke, Style } from "ol/style"
 import React, { useEffect, useRef, useState, useCallback, useMemo, memo } from "react"
@@ -227,7 +228,13 @@ const AISMap = () => {
 
     const map = new Map({
       target: mapRef.current,
-      layers: [new TileLayer({ source: new OSM() }), new VectorLayer({ source: vectorSource })],
+      layers: [new TileLayer({
+        source: new XYZ({
+          url: 'http://mt0.google.com/vt/lyrs=p&hl=vi&x={x}&y={y}&z={z}'
+        }),
+        visible: true,
+        title: 'ggterrain'
+      }), new VectorLayer({ source: vectorSource })],
       view: new View({
         center: fromLonLat(INITIAL_CENTER),
         zoom: INITIAL_ZOOM
