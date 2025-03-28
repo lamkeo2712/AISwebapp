@@ -37,7 +37,7 @@ const Profile = () => {
   const getProfile = async () => {
     try {
       const res = await userService.getUserInfo()
-      dispatch(init({ isAuthenticated: true, user: res.data }))
+      dispatch(init({ isAuthenticated: true, user: res }))
     } catch (err) {
       console.log("error: ", error)
       toast.error(err.message)
@@ -46,7 +46,7 @@ const Profile = () => {
 
   return (
     <React.Fragment>
-      <div className="page-content">
+      <div className="page-content" style={{marginTop: '100px'}}>
         <Container fluid>
           <BreadCrumb title="Thông tin cá nhân" pageTitle="Trang chủ" />
           <Row>

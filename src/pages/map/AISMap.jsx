@@ -132,31 +132,57 @@ const InfoPanel = memo(
         </span>
       </div>
       <ListGroup>
-        <ListGroupItem>
-          <b>Name: </b> {selectedVessel?.VesselName}
-        </ListGroupItem>
-        <ListGroupItem>
-          <b>MMSI: </b> {selectedVessel?.MMSI}
-        </ListGroupItem>
-        <ListGroupItem>
-          <b>IMO: </b> {selectedVessel?.IMONumber}
-        </ListGroupItem>
-        <ListGroupItem>
-          <b>Call sign: </b> {selectedVessel?.CallSign}
-        </ListGroupItem>
-        <ListGroupItem>
-          <b>Latitude/Longitude: </b> {selectedVessel?.Latitude}/ {selectedVessel?.Longitude}
-        </ListGroupItem>
-        <ListGroupItem>
-          <b>Destination: </b> {selectedVessel?.Destination}
-        </ListGroupItem>
-        <ListGroupItem>
-          <b>ShipLength: </b> {selectedVessel?.ShipLength}
-        </ListGroupItem>
-        <ListGroupItem>
-          <b>ShipWidth: </b> {selectedVessel?.ShipWidth}
-        </ListGroupItem>
-      </ListGroup>
+  <ListGroupItem>
+    <b>VesselName: </b> {selectedVessel?.VesselName ?? 'N/A'}
+  </ListGroupItem>
+  <ListGroupItem>
+    <b>MMSI: </b> {selectedVessel?.MMSI ?? 'N/A'}
+  </ListGroupItem>
+  <ListGroupItem>
+    <b>IMO: </b> {selectedVessel?.IMONumber ?? 'N/A'}
+  </ListGroupItem>
+  <ListGroupItem>
+    <b>Call sign: </b> {selectedVessel?.CallSign ?? 'N/A'}
+  </ListGroupItem>
+  <ListGroupItem>
+    <b>ShipType: </b> {selectedVessel?.ShipType ?? 'N/A'}
+  </ListGroupItem>
+  <ListGroupItem>
+    <b>Latitude/Longitude: </b> 
+    {selectedVessel?.Latitude ? `${selectedVessel.Latitude}°` : 'N/A'} / 
+    {selectedVessel?.Longitude ? `${selectedVessel.Longitude}°` : 'N/A'}
+  </ListGroupItem>
+  <ListGroupItem>
+    <b>Destination: </b> {selectedVessel?.Destination ?? 'N/A'}
+  </ListGroupItem>
+  <ListGroupItem>
+    <b>DateTimeUTC: </b> {selectedVessel?.DateTimeUTC ?? 'N/A'} UTC
+  </ListGroupItem>
+  <ListGroupItem>
+    <b>RateOfTurn: </b> 
+    {selectedVessel?.RateOfTurn ? `${selectedVessel.RateOfTurn}°/min` : 'N/A'}
+  </ListGroupItem>
+  <ListGroupItem>
+    <b>SpeedOverGround: </b> 
+    {selectedVessel?.SpeedOverGround ? `${selectedVessel.SpeedOverGround} knots` : 'N/A'}
+  </ListGroupItem>
+  <ListGroupItem>
+    <b>CourseOverGround: </b> 
+    {selectedVessel?.CourseOverGround ? `${selectedVessel.CourseOverGround}°` : 'N/A'}
+  </ListGroupItem>
+  <ListGroupItem>
+    <b>TrueHeading: </b> 
+    {selectedVessel?.TrueHeading ? `${selectedVessel.TrueHeading}°` : 'N/A'}
+  </ListGroupItem>
+  <ListGroupItem>
+    <b>ShipLength: </b> 
+    {selectedVessel?.ShipLength ? `${selectedVessel.ShipLength} m` : 'N/A'}
+  </ListGroupItem>
+  <ListGroupItem>
+    <b>ShipWidth: </b> 
+    {selectedVessel?.ShipWidth ? `${selectedVessel.ShipWidth} m` : 'N/A'}
+  </ListGroupItem>
+</ListGroup>
       <div className="text-center d-flex flex-row gap-2 align-items-center mt-3">
         <Select
           options={[
@@ -334,11 +360,17 @@ const AISMap = () => {
       }
     })
 
+    // Set up interval to refresh vessel list every 20 seconds
+    const intervalId = setInterval(() => {
+      getVesselList()
+    }, 20000)
+
     return () => {
       map.setTarget(undefined)
       overlayRef.current?.setPosition(undefined)
+      clearInterval(intervalId) // Clean up interval when component unmounts
     }
-  }, [vectorSource])
+  }, [vectorSource, getVesselList])
 
   return (
     <React.Fragment>
