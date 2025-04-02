@@ -40,7 +40,7 @@ const MAP_STYLES = {
 }
 
 const createVesselFeature = (vessel) => {
-  let color = vessel.ShipTypeColor || "cyan"
+  let color = vessel.ShipTypeColor || "gray"
   const feature = new Feature({
     geometry: new Point(fromLonLat([vessel.Longitude, vessel.Latitude])),
     type: "vessel",
@@ -171,7 +171,7 @@ const InfoPanel = memo(
                     const lonMin = Math.floor(lonMinNotTrunc);
                     const lonSec = Math.floor((lonMinNotTrunc - lonMin) * 60);
                     const lonDir = selectedVessel.Longitude >= 0 ? 'E' : 'W';
-                    return `${latDeg}° ${latMin}' ${latSec}" ${latDir} / ${lonDeg}° ${lonMin}' ${lonSec}" ${lonDir}`;
+                    return `${latDeg}°${latMin}'${latSec}"${latDir} / ${lonDeg}°${lonMin}'${lonSec}"${lonDir}`;
                   })()
                 : 'N/A'}
     </ListGroupItem>
@@ -199,24 +199,20 @@ const InfoPanel = memo(
    </ListGroupItem>
    <ListGroupItem>
      <b>SpeedOverGround: </b> 
-     {selectedVessel?.SpeedOverGround ? `${selectedVessel.SpeedOverGround} knots` : 'N/A'}
+     {selectedVessel?.SpeedOverGround ? selectedVessel?.SpeedOverGround == 102.3 ? 'Speed is not available' : `${selectedVessel.SpeedOverGround} knots` : 'N/A'}
    </ListGroupItem>
    <ListGroupItem>
      <b>CourseOverGround: </b> 
-     {selectedVessel?.CourseOverGround ? `${selectedVessel.CourseOverGround}°` : 'N/A'}
+     {selectedVessel?.CourseOverGround ? selectedVessel?.CourseOverGround == 3600 ? 'Not available' : `${selectedVessel.CourseOverGround}°` : 'N/A'}
    </ListGroupItem>
    <ListGroupItem>
      <b>TrueHeading: </b> 
-     {selectedVessel?.TrueHeading ? `${selectedVessel.TrueHeading}°` : 'N/A'}
+     {selectedVessel?.TrueHeading ?  (selectedVessel?.TrueHeading == 511 ? 'Not turning' : `${selectedVessel.TrueHeading}°`) : 'N/A'}
    </ListGroupItem>
    <ListGroupItem>
-     <b>ShipLength: </b> 
-     {selectedVessel?.ShipLength ? `${selectedVessel.ShipLength} m` : 'N/A'}
+     <b>Dimension: </b> {selectedVessel?.ShipLength ? selectedVessel?.ShipLength + 'm' : "N/A"} x {selectedVessel?.ShipWidth ? selectedVessel?.ShipWidth + 'm' : "N/A"}
    </ListGroupItem>
-   <ListGroupItem>
-     <b>ShipWidth: </b> 
-     {selectedVessel?.ShipWidth ? `${selectedVessel.ShipWidth} m` : 'N/A'}
-   </ListGroupItem>
+   
  </ListGroup>
           <div className="text-center d-flex flex-row gap-2 align-items-center mt-3">
             <Select
@@ -261,7 +257,7 @@ const InfoPanel = memo(
               <b>Type Of Aid To Navigation: </b> {selectedVessel?.AidType ?? "N/A"}
             </ListGroupItem>
             <ListGroupItem>
-              <b>Dimension: </b> {selectedVessel?.ShipLength ?? "N/A"}/{selectedVessel?.ShipWidth ?? "N/A"}
+              <b>Dimension: </b> {selectedVessel?.ShipLength ?? "N/A"}m x {selectedVessel?.ShipWidth ?? "N/A"}m
             </ListGroupItem>
             <ListGroupItem>
               <b>Latitude/Longitude: </b> 
@@ -449,7 +445,7 @@ const AISMap = () => {
     // Set up interval to refresh vessel list every 20 seconds
     const intervalId = setInterval(() => {
       getVesselList()
-    }, 20000)
+    }, 30000)
 
     return () => {
       map.setTarget(undefined)

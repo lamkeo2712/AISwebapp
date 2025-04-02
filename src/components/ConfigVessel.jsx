@@ -29,10 +29,11 @@ const ConfigVessel = () => {
 
   const handleLoaiTauChange = (type) => {
     setLoaiTau((prev) => {
-      if (prev.includes(type)) {
-        return prev.filter((item) => item !== type)
+      const isTypeInPrev = type.every(t => prev.includes(t))
+      if (isTypeInPrev) {
+        return prev.filter(item => !type.includes(item))
       }
-      return [...prev, type]
+      return [...prev, ...type]
     })
   }
 
@@ -40,7 +41,25 @@ const ConfigVessel = () => {
     try {
       const response = await vesselService.getLoaiTauLOV()
       console.log(response)
-      setLoaiTauLOV(response?.DM_Tau || [])
+      
+      // Group vessels by type
+      const groupedVessels = response?.DM_Tau.reduce((acc, vessel) => {
+        const existingType = acc.find(group => group.type === vessel.type)
+        
+        if (existingType) {
+          existingType.id.push(vessel.id)
+        } else {
+          acc.push({
+            type: vessel.type,
+            color: vessel.color,
+            id: [vessel.id]
+          })
+        }
+        
+        return acc
+      }, [])
+      
+      setLoaiTauLOV(groupedVessels || [])
     } catch (error) {
       console.error("Error fetching vessel list:", error) 
     }
@@ -48,6 +67,7 @@ const ConfigVessel = () => {
 
   useEffect(() => {
     getLoaiTauLOV()
+    console.log("loaiTauLOV:", loaiTauLOV)
   }, [])
 
   const getVesselList = useCallback(async (thamSoObject = {}) => {
@@ -74,7 +94,7 @@ const ConfigVessel = () => {
           className="form-check-input"
           type="checkbox"
           id={id}
-          checked={loaiTau.includes(id)}
+          checked={id.every(i => loaiTau.includes(i))}
           onChange={() => handleLoaiTauChange(id)}
         />
         <Label className="form-check-label d-flex align-items-center" htmlFor={id}>
@@ -204,7 +224,7 @@ const ConfigVessel = () => {
                       </div>
                       <div
                         className="cursor-pointer text-decoration-underline"
-                        onClick={() => setLoaiTau(loaiTauLOV.map((item) => item.id))}
+                        onClick={() => setLoaiTau(loaiTauLOV.map((item) => item.id).flat())}
                       >
                         Chọn tất cả
                       </div>
@@ -214,7 +234,7 @@ const ConfigVessel = () => {
                 <Row className="mb-3" style={{ maxHeight: "500px", overflowY: "auto" }}>
                 {(loaiTauLOV || []).map((item, index) => {
                   return <Fragment key={index}>
-                  {renderLoaiTauCheckbox(item.id, item.valuess, item.color)}
+                    {renderLoaiTauCheckbox(item.id, item.type, item.color)}
                   </Fragment>
                 })}
                 </Row>
