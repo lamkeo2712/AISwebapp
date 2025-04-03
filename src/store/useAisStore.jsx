@@ -4,6 +4,7 @@ const useAisStore = create((set) => ({
   vesselList: [],
   selectedVessel: null,
   loaiTauLOV: [],
+  thamSoObject: {},
   setSelectedVessel: (value) => {
     set(() => ({ selectedVessel: value }))
   },
@@ -12,6 +13,11 @@ const useAisStore = create((set) => ({
     },
   setLoaiTauLOV: (value) => {
     set(() => ({ loaiTauLOV: value }))
+  },
+  setThamSoTau: (value) => {
+    set((state) => ({ 
+      thamSoTau: { ...state.thamSoTau, ...value } 
+    }))
   }
 }))
 

@@ -68,7 +68,7 @@ const createVesselFeature = (vessel) => {
 
         scale: 0.8,
         imgSize: [svgSize, svgSize],
-        rotation: vessel.AidTypeID ? 45 : vessel.CourseOverGround || 0
+        rotation: vessel.AidTypeID ? 15 : vessel.CourseOverGround || 0
       })
     })
   )
@@ -89,21 +89,24 @@ const createPathFeatures = (points) => {
     })
   )
 
-  const startFeature = new Feature({
-    geometry: new Point(fromLonLat([points[points.length - 1].longitude, points[points.length - 1].latitude])),
-    type: "path"
-  })
+  // const startFeature = new Feature({
+  //   geometry: new Point(fromLonLat([points[points.length - 1].longitude, points[points.length - 1].latitude])),
+  //   type: "path"
+  // })
 
-  startFeature.setStyle(
-    new Style({
-      image: new Icon({
-        src: `src/assets/images/vessel/ship.png`,
-        scale: 0.2
-      })
-    })
-  )
+  // startFeature.setStyle(
+  //   new Style({
+  //     image: new Icon({
+  //       src: `src/assets/images/vessel/ship.png`,
+  //       scale: 0.2
+  //     })
+  //   })
+  // )
 
-  return [lineFeature, startFeature]
+  return [
+    lineFeature
+    //startFeature
+  ]
 }
 
 const InfoPanel = memo(
@@ -117,7 +120,8 @@ const InfoPanel = memo(
     setViewingRoute,
     renderPath,
     selectedTime,
-    setSelectedTime
+    setSelectedTime,
+    vectorSource 
   }) => (
     <div
       id="infoPanel"
@@ -230,20 +234,40 @@ const InfoPanel = memo(
                 setSelectedTime(e)
               }}
             />
-            <Button
+            
+            {(viewingRoute && selectedVessel?.MMSI === viewingRoute) ? (
+              <Button 
+              color="primary" 
+              onClick={() => {
+                setViewingRoute(null);
+                // Clear path features when hiding route
+                vectorSource
+                  .getFeatures()
+                  .filter((feature) => feature.get("type") === "path")
+                  .forEach((feature) => vectorSource.removeFeature(feature));
+              }} 
+              className="flex-grow-1"
+            >
+              Ẩn hành trình
+            </Button>
+            )  :
+            (
+              <Button
               className="d-inline-flex align-items-center justify-content-center"
               color="primary"
-              onClick={() => getVesselRoute(selectedVessel?.MMSI)}
+              onClick={() => {
+                // getVesselRoute(selectedVessel?.MMSI)
+                setViewingRoute(selectedVessel?.MMSI)
+              }}
               disabled={!selectedVessel?.MMSI || isLoading}
             >
               {isLoading && <Spinner size="sm" className="me-2" />}
               Xem hành trình
             </Button>
-            {viewingRoute && selectedVessel?.MMSI === viewingRoute && (
-              <Button color="primary" onClick={() => setViewingRoute(null)} className="flex-grow-1">
-                Ẩn hành trình
-              </Button>
-            )}
+
+            )
+
+            }
           </div>
         </>
       )}
@@ -313,6 +337,8 @@ const AISMap = () => {
   const setSelectedVessel = useAisStore((state) => state.setSelectedVessel)
   const vesselList = useAisStore((state) => state.vesselList)
   const setVesselList = useAisStore((state) => state.setVesselList)
+  const thamSoTau = useAisStore((state) => state.thamSoTau)
+  const setThamSoTau  = useAisStore((state) => state.setThamSoTau)
   const vectorSource = useMemo(() => new VectorSource(), [])
   const [selectedTime, setSelectedTime] = useState({ value: "1", label: "1H" })
   const renderVessels = useCallback(
@@ -348,24 +374,40 @@ const AISMap = () => {
         const vessels = response?.DM_Tau || []
         setVesselList(vessels)
         renderVessels(vessels)
+        if (viewingRoute) {
+          const vesselExists = vessels.some(vessel => vessel.MMSI === viewingRoute)
+          if (vesselExists) {
+            getVesselRoute(viewingRoute, false)
+          } else {
+            setViewingRoute(null)
+          }
+        }
       } catch (error) {
         console.error("Error fetching vessel list:", error)
         toast.error("Có lỗi xảy ra khi tải danh sách tàu")
       }
     },
-    [renderVessels]
+    [renderVessels, viewingRoute]
   )
+  
+  // Tách riêng việc lấy route
+  useEffect(() => {
+    console.log('Viewing Route Changed:', viewingRoute)
+    if (viewingRoute) {
+      getVesselRoute(viewingRoute, false)
+    }
+  }, [viewingRoute])
 
   useEffect(() => {
     renderVessels(vesselList)
   }, [vesselList])
 
-  const getVesselRoute = async (MMSI) => {
+  const getVesselRoute = async (MMSI, isAnimate = true) => {
     if (!MMSI) return
 
     try {
       setIsLoading(true)
-      const response = await vesselService.getVesselRoute({ MMSI: MMSI, Hours: selectedTime?.value || 72 })
+      const response = await vesselService.getVesselRoute({ MMSI: MMSI, Hours: selectedTime?.value || 24 })
       const points = (response?.DM_HanhTrinh || []).map((item) => ({
         longitude: item.Longitude,
         latitude: item.Latitude
@@ -374,7 +416,7 @@ const AISMap = () => {
       setViewingRoute(MMSI)
 
       // Zoom lại điểm bắt đầu với hiệu ứng
-      if (points.length > 0) {
+      if (isAnimate && points.length > 0) {
         const startPoint = fromLonLat([points[0].longitude, points[0].latitude])
         const view = mapInstance.current.getView()
         view.setCenter(startPoint)
@@ -393,7 +435,9 @@ const AISMap = () => {
   }
 
   useEffect(() => {
-    getVesselList()
+    const currentThamSoTau = useAisStore.getState().thamSoTau
+    console.log("thamSoTau:", currentThamSoTau)
+    getVesselList(currentThamSoTau)
 
     const map = new Map({
       target: mapRef.current,
@@ -444,7 +488,9 @@ const AISMap = () => {
 
     // Set up interval to refresh vessel list every 20 seconds
     const intervalId = setInterval(() => {
-      getVesselList()
+      const currentThamSoTau = useAisStore.getState().thamSoTau
+      console.log("thamSoTau:", currentThamSoTau)
+      getVesselList(currentThamSoTau)
     }, 30000)
 
     return () => {
@@ -482,6 +528,7 @@ const AISMap = () => {
                 setViewingRoute={setViewingRoute}
                 selectedTime={selectedTime}
                 setSelectedTime={setSelectedTime}
+                vectorSource={vectorSource}
               />
             </CardBody>
           </Card>
