@@ -76,7 +76,7 @@ const createVesselFeature = (vessel) => {
   return feature
 }
 
-const createPathFeatures = (points) => {
+const createPathFeatures = (points, vessel) => {
   if (!points?.length) return []
   const lineFeature = new Feature({
     geometry: new LineString(points.map((point) => fromLonLat([point.longitude, point.latitude]))),
@@ -89,7 +89,8 @@ const createPathFeatures = (points) => {
     })
   )
 
-  // const startFeature = new Feature({
+  const startFeature = createVesselFeature(vessel)
+  //  = new Feature({
   //   geometry: new Point(fromLonLat([points[points.length - 1].longitude, points[points.length - 1].latitude])),
   //   type: "path"
   // })
@@ -104,8 +105,8 @@ const createPathFeatures = (points) => {
   // )
 
   return [
-    lineFeature
-    //startFeature
+    lineFeature,
+    startFeature
   ]
 }
 
@@ -257,7 +258,7 @@ const InfoPanel = memo(
               color="primary"
               onClick={() => {
                 // getVesselRoute(selectedVessel?.MMSI)
-                setViewingRoute(selectedVessel?.MMSI)
+                setViewingRoute(selectedVessel)
               }}
               disabled={!selectedVessel?.MMSI || isLoading}
             >
@@ -356,13 +357,13 @@ const AISMap = () => {
   )
 
   const renderPath = useCallback(
-    (points) => {
+    (points, vessel) => {
       vectorSource
         .getFeatures()
         .filter((feature) => feature.get("type") === "path")
         .forEach((feature) => vectorSource.removeFeature(feature))
 
-      createPathFeatures(points).forEach((feature) => vectorSource.addFeature(feature))
+      createPathFeatures(points, vessel).forEach((feature) => vectorSource.addFeature(feature))
     },
     [vectorSource]
   )
@@ -375,7 +376,8 @@ const AISMap = () => {
         setVesselList(vessels)
         renderVessels(vessels)
         if (viewingRoute) {
-          const vesselExists = vessels.some(vessel => vessel.MMSI === viewingRoute)
+          // TODO: Sau này sửa bên Config Vessel thì bỏ check
+          const vesselExists = vessels.some(vessel => vessel.MMSI === viewingRoute.MMSI)
           if (vesselExists) {
             getVesselRoute(viewingRoute, false)
           } else {
@@ -394,7 +396,7 @@ const AISMap = () => {
   useEffect(() => {
     console.log('Viewing Route Changed:', viewingRoute)
     if (viewingRoute) {
-      getVesselRoute(viewingRoute, false)
+      getVesselRoute(viewingRoute, true)
     }
   }, [viewingRoute])
 
@@ -402,18 +404,21 @@ const AISMap = () => {
     renderVessels(vesselList)
   }, [vesselList])
 
-  const getVesselRoute = async (MMSI, isAnimate = true) => {
-    if (!MMSI) return
-
+  const getVesselRoute = async (vessel, isAnimate = true) => {
+    if (!vessel.MMSI) return
     try {
       setIsLoading(true)
-      const response = await vesselService.getVesselRoute({ MMSI: MMSI, Hours: selectedTime?.value || 24 })
+      const response = await vesselService.getVesselRoute({ MMSI: vessel.MMSI, Hours: selectedTime?.value || 24 })
       const points = (response?.DM_HanhTrinh || []).map((item) => ({
         longitude: item.Longitude,
         latitude: item.Latitude
       }))
-      renderPath(points)
-      setViewingRoute(MMSI)
+      if (points.length <= 0) {
+        setViewingRoute(null)
+        return
+      }
+      renderPath(points, vessel)
+      setViewingRoute(vessel)
 
       // Zoom lại điểm bắt đầu với hiệu ứng
       if (isAnimate && points.length > 0) {
