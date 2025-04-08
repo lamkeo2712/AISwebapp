@@ -134,11 +134,6 @@ const Login = () => {
                         </div>
 
                         <div className="mb-3">
-                          <div className="float-end">
-                            <Link to="/auth/forgot-password" className="text-muted">
-                              Quên mật khẩu?
-                            </Link>
-                          </div>
                           <Label className="form-label" htmlFor="password-field">
                             Mật khẩu
                           </Label>
@@ -170,6 +165,11 @@ const Login = () => {
                           {errors.password && (
                             <div className="invalid-feedback  d-inline-block">{errors.password.message}</div>
                           )}
+                          <div className="float-end">
+                            <Link to="/auth/forgot-password" className="text-muted">
+                              Quên mật khẩu?
+                            </Link>
+                          </div>
                         </div>
 
                         <div className="form-check">

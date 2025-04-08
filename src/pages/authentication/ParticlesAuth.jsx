@@ -23,7 +23,7 @@ const ParticlesAuth = ({ children }) => {
               <div className="col-lg-12">
                 <div className="text-center">
                   <p className="mb-0 text-muted">
-                    &copy; {new Date().getFullYear()} MyAIS - <i className="mdi mdi-heart text-danger"></i> ReactJS
+                    &copy; {new Date().getFullYear()} MyAIS - <i className="mdi mdi-heart text-danger"></i>
                   </p>
                 </div>
               </div>

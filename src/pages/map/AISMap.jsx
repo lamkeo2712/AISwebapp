@@ -39,11 +39,16 @@ const MAP_STYLES = {
   })
 }
 
-const createVesselFeature = (vessel) => {
+const createVesselFeature = (vessel, isRoute = false) => {
+  if ((vessel.Latitude === 0 && vessel.Longitude === 0) || (vessel.Latitude == null && vessel.Longitude == null)) {
+    //console.log("Vessel has no position")
+    return null
+  }
+
   let color = vessel.ShipTypeColor || "gray"
   const feature = new Feature({
     geometry: new Point(fromLonLat([vessel.Longitude, vessel.Latitude])),
-    type: "vessel",
+    type: isRoute ? "path" : "vessel",
     data: vessel
   })
 
@@ -63,15 +68,49 @@ const createVesselFeature = (vessel) => {
   const svgUrl = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg)
   feature.setStyle(
     new Style({
+      zIndex:1000,
       image: new Icon({
         src: svgUrl,
 
-        scale: 0.8,
+        scale: isRoute ? 0.3 : 0.8,
         imgSize: [svgSize, svgSize],
-        rotation: vessel.AidTypeID ? 15 : vessel.CourseOverGround || 0
+        rotation:  vessel.AidTypeID ? 45 * (Math.PI/180) : vessel.CourseOverGround * (Math.PI/180) || 0
       })
     })
   )
+
+  //console.log(vessel.VesselName + ": ", feature)
+  return feature
+}
+
+const createVesselRouteFeature = (vessel) => {
+  let color = vessel.color || "gray"
+  const feature = new Feature({
+    geometry: new Point(fromLonLat([vessel.longitude, vessel.latitude])),
+    type: "pathVessel",
+    data: vessel
+  })
+
+  const svgSize = 24
+  const svg =  `
+    <svg width="${svgSize}" height="${svgSize}" viewBox="0 0 ${svgSize} ${svgSize}" xmlns="http://www.w3.org/2000/svg">
+      <path d="M11.437 17.608 3.354 22.828l8.336 -21.536 8.337 21.536L11.944 17.608l-0.253 -0.163 -0.254 0.163Z" stroke="${color.trim()}" stroke-width="0.9" fill="${color.trim()}"></path>
+    </svg>
+  `
+  const svgUrl = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg)
+  feature.setStyle(
+    new Style({
+      zIndex:999,
+      image: new Icon({
+        src: svgUrl,
+
+        scale: 0.4 ,
+        imgSize: [svgSize, svgSize],
+        rotation:   vessel.cog * (Math.PI/180) || 0
+      })
+    })
+  )
+  //console.log(feature)
 
   return feature
 }
@@ -85,11 +124,36 @@ const createPathFeatures = (points, vessel) => {
 
   lineFeature.setStyle(
     new Style({
+      zIndex: 998,
       stroke: new Stroke({ color: "#3388ff", width: 2, lineDash: [10, 10] })
     })
   )
 
-  const startFeature = createVesselFeature(vessel)
+
+  const pointFeatures = points.length > 72
+  ? Array.from({ length: 72 }, (_, index) => {
+      const position = Math.floor(index * (points.length - 1) / 71)
+      return createVesselRouteFeature(points[position])
+    })
+  : points.map((point, index) => {
+      if (index !== points.length - 1) {
+        return createVesselRouteFeature(point)
+      }
+      return null
+    }).filter(Boolean)
+
+  // vespath v1
+  // const pointFeatures = points.map((point, index) => {
+  //   if (index !== points.length - 1) {
+  //     return createVesselRouteFeature(point)
+  //   }
+  //   return null
+  // }).filter(Boolean)
+
+  
+  const startFeature = createVesselFeature(vessel, true)
+  
+
   //  = new Feature({
   //   geometry: new Point(fromLonLat([points[points.length - 1].longitude, points[points.length - 1].latitude])),
   //   type: "path"
@@ -106,6 +170,7 @@ const createPathFeatures = (points, vessel) => {
 
   return [
     lineFeature,
+    ...pointFeatures,
     startFeature
   ]
 }
@@ -208,7 +273,7 @@ const InfoPanel = memo(
    </ListGroupItem>
    <ListGroupItem>
      <b>CourseOverGround: </b> 
-     {selectedVessel?.CourseOverGround ? selectedVessel?.CourseOverGround == 3600 ? 'Not available' : `${selectedVessel.CourseOverGround}°` : 'N/A'}
+     {selectedVessel?.CourseOverGround ? selectedVessel?.CourseOverGround == 360 ? 'Not available' : `${selectedVessel.CourseOverGround}°` : 'N/A'}
    </ListGroupItem>
    <ListGroupItem>
      <b>TrueHeading: </b> 
@@ -236,7 +301,7 @@ const InfoPanel = memo(
               }}
             />
             
-            {(viewingRoute && selectedVessel?.MMSI === viewingRoute) ? (
+            {(viewingRoute && selectedVessel?.MMSI === viewingRoute.MMSI) ? (
               <Button 
               color="primary" 
               onClick={() => {
@@ -244,7 +309,7 @@ const InfoPanel = memo(
                 // Clear path features when hiding route
                 vectorSource
                   .getFeatures()
-                  .filter((feature) => feature.get("type") === "path")
+                  .filter((feature) => feature.get("type") === "path" || feature.get("type") === "pathVessel")
                   .forEach((feature) => vectorSource.removeFeature(feature));
               }} 
               className="flex-grow-1"
@@ -346,12 +411,15 @@ const AISMap = () => {
     (vessels) => {
       vectorSource
         .getFeatures()
-        .filter((feature) => ["vessel", "path"].includes(feature.get("type")))
+        .filter((feature) => ["vessel", "path", "pathVessel"].includes(feature.get("type")))
         .forEach((feature) => vectorSource.removeFeature(feature))
 
-      vessels.forEach((vessel) => {
-        vectorSource.addFeature(createVesselFeature(tranformApiData(vessel)))
-      })
+        vessels.forEach((vessel) => {
+          const vesselFeature = createVesselFeature(tranformApiData(vessel))
+          if (vesselFeature !== null) {
+            vectorSource.addFeature(vesselFeature)
+          }
+        })
     },
     [vectorSource]
   )
@@ -360,10 +428,11 @@ const AISMap = () => {
     (points, vessel) => {
       vectorSource
         .getFeatures()
-        .filter((feature) => feature.get("type") === "path")
+        .filter((feature) => feature.get("type") == "path" || feature.get("type") == "pathVessel")
         .forEach((feature) => vectorSource.removeFeature(feature))
 
-      createPathFeatures(points, vessel).forEach((feature) => vectorSource.addFeature(feature))
+      createPathFeatures(points, vessel).forEach((feature) =>{ 
+        vectorSource.addFeature(feature)})
     },
     [vectorSource]
   )
@@ -411,7 +480,12 @@ const AISMap = () => {
       const response = await vesselService.getVesselRoute({ MMSI: vessel.MMSI, Hours: selectedTime?.value || 24 })
       const points = (response?.DM_HanhTrinh || []).map((item) => ({
         longitude: item.Longitude,
-        latitude: item.Latitude
+        latitude: item.Latitude,
+        vesselName: item.VesselName,
+        cog : item.CourseOverGround,
+        sog: item.SpeedOverGround,
+        datetimeutc: item.DateTimeUTC,
+        color: item.ShipTypeColor,
       }))
       if (points.length <= 0) {
         setViewingRoute(null)
@@ -438,6 +512,20 @@ const AISMap = () => {
       setIsLoading(false)
     }
   }
+
+  const popupElement = document.createElement('div')
+  popupElement.style.position = 'absolute'
+  popupElement.style.backgroundColor = 'black'
+  popupElement.style.border = '1px solid white'
+  popupElement.style.padding = '10px'
+  popupElement.style.zIndex = '1000'
+  popupElement.style.display = 'none'
+  popupElement.style.fontSize = '10px'
+  popupElement.style.color = 'white'
+  popupElement.style.width = 'max-content' 
+  popupElement.style.maxWidth = '300px' 
+  popupElement.style.wordBreak = 'break-word' 
+
 
   useEffect(() => {
     const currentThamSoTau = useAisStore.getState().thamSoTau
@@ -491,12 +579,73 @@ const AISMap = () => {
       }
     })
 
-    // Set up interval to refresh vessel list every 20 seconds
+    
+  const popup = new Overlay({
+    element: popupElement,
+    positioning: 'bottom-center',
+    stopEvent: false,
+    offset: [0, -10]
+  })
+  map.addOverlay(popup)
+
+    map.on("pointermove", (event) => {
+      const feature = map.forEachFeatureAtPixel(event.pixel, (feat) => feat)
+      if (feature?.get("type") === "pathVessel") {
+        const featureData = feature.get("data")
+    
+        // Cập nhật nội dung popup
+        popupElement.innerHTML = `
+          <div>
+            <strong>Tàu:</strong> ${featureData.vesselName || 'N/A'}<br>
+            <strong>Thời gian:</strong> ${featureData.datetimeutc 
+                ? (() => {
+                    const date = new Date(featureData.datetimeutc);
+                    const hours = String(date.getHours()).padStart(2, '0');
+                    const minutes = String(date.getMinutes()).padStart(2, '0');
+                    const seconds = String(date.getSeconds()).padStart(2, '0');
+                    const day = String(date.getDate()).padStart(2, '0');
+                    const month = String(date.getMonth() + 1).padStart(2, '0');
+                    const year = date.getFullYear();
+                    return `${hours}:${minutes}:${seconds} ${day}/${month}/${year}`;
+                  })()
+                : 'N/A'} <br>
+            <strong>Vị trí:</strong> ${(featureData.latitude !== undefined && featureData.longitude !== undefined)
+                ? (() => {
+                    const latAbs = Math.abs(featureData.latitude);
+                    const latDeg = Math.floor(latAbs);
+                    const latMinNotTrunc = (latAbs - latDeg) * 60;
+                    const latMin = Math.floor(latMinNotTrunc);
+                    const latSec = Math.floor((latMinNotTrunc - latMin) * 60);
+                    const latDir = featureData.latitude >= 0 ? 'N' : 'S';
+                    const lonAbs = Math.abs(featureData.longitude);
+                    const lonDeg = Math.floor(lonAbs);
+                    const lonMinNotTrunc = (lonAbs - lonDeg) * 60;
+                    const lonMin = Math.floor(lonMinNotTrunc);
+                    const lonSec = Math.floor((lonMinNotTrunc - lonMin) * 60);
+                    const lonDir = featureData.longitude >= 0 ? 'E' : 'W';
+                    return `${latDeg}°${latMin}'${latSec}"${latDir} / ${lonDeg}°${lonMin}'${lonSec}"${lonDir}`;
+                  })()
+                : 'N/A'}<br>
+            <strong>Hướng tàu:</strong> ${featureData.cog ? featureData.cog == 360 ? 'Not available' : `${featureData.cog}°` : 'N/A'}<br>
+            <strong>Tốc độ:</strong> ${featureData.sog ? featureData.sog == 102.3 ? 'Speed is not available' : `${featureData.sog} knots` : 'N/A'}<br>
+          </div>
+        `
+        
+        // Hiển thị popup
+        popupElement.style.display = 'block'
+        popup.setPosition(event.coordinate)
+      } else {
+        // Ẩn popup nếu không hover vào feature
+        popupElement.style.display = 'none'
+        popup.setPosition(undefined)
+      }
+    })
+
     const intervalId = setInterval(() => {
       const currentThamSoTau = useAisStore.getState().thamSoTau
       console.log("thamSoTau:", currentThamSoTau)
       getVesselList(currentThamSoTau)
-    }, 30000)
+    }, 20000)
 
     return () => {
       map.setTarget(undefined)
