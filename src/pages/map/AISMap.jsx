@@ -23,7 +23,7 @@ import useAisStore from "../../store/useAisStore"
 import hoangSa from "./data/HoangSa.json"
 import offshore from "./data/Offshore.json"
 import truongSa from "./data/TruongSa.json"
-import Select from "react-select"
+// Note: removed react-select usage; using fixed-duration buttons instead
 
 // Constants
 const INITIAL_CENTER = [106.81196689833655, 20.728998788877234]
@@ -177,7 +177,6 @@ const createPathFeatures = (points, vessel) => {
 
 const InfoPanel = memo(
   ({
-    isPanelOpen,
     selectedVessel,
     getVesselRoute,
     isLoading,
@@ -187,205 +186,188 @@ const InfoPanel = memo(
     renderPath,
     selectedTime,
     setSelectedTime,
-    vectorSource 
+    vectorSource,
+    position
   }) => (
     <div
       id="infoPanel"
-      className="info-panel"
+      className="info-panel-popup"
       style={{
-        right: isPanelOpen ? 0 : "-24%"
+        position: 'absolute',
+        left: position ? `${position[0] + 15}px` : '0px',
+        top: position ? `${position[1] - 150}px` : '0px',
+        backgroundColor: 'white',
+        // remove top padding so sticky header can sit flush with the panel's top
+        paddingTop: 0,
+        paddingRight: '8px',
+        paddingBottom: '8px',
+        paddingLeft: '8px',
+        borderRadius: '6px',
+        boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
+        zIndex: 1000,
+        maxHeight: '400px',
+  // body will handle scrolling
+  overflowY: 'hidden',
+  display: selectedVessel ? 'flex' : 'none',
+  flexDirection: 'column',
+        maxWidth: '350px',
+        fontSize: '11px',
+        border: '1px solid rgba(0,0,0,0.1)'
       }}
     >
-      <div className="">
-        <h4>Thông tin tàu</h4>
+      <div
+        className="d-flex justify-content-between align-items-center"
+        style={{
+          position: 'sticky',
+          top: 0,
+          // match panel background so it covers any gap when stuck
+          backgroundColor: 'white',
+          // give the header its own padding so content doesn't touch edges
+          padding: '8px',
+          zIndex: 1011,
+          // preserve the rounded corners visually when header is at the top
+          borderTopLeftRadius: '6px',
+          borderTopRightRadius: '6px',
+          // subtle divider between header and content
+          borderBottom: '1px solid rgba(0,0,0,0.06)'
+        }}
+      >
+        <h6 className="m-0 fw-bold">Thông tin tàu</h6>
         <span
-          className="position-absolute fs-24 cursor-pointer"
+          className="fs-18 cursor-pointer"
           onClick={() => setSelectedVessel(null)}
-          style={{ top: "5px", right: "20px" }}
+          style={{ lineHeight: 1 }}
         >
           <i className="ri-close-line"></i>
         </span>
       </div>
-
-      {!selectedVessel?.AidTypeID && (
-        <>
-          <ListGroup>
-          <ListGroupItem>
-     <b>VesselName: </b> {selectedVessel?.VesselName ?? 'N/A'}
-   </ListGroupItem>
-   <ListGroupItem>
-     <b>MMSI: </b> {selectedVessel?.MMSI ?? 'N/A'}
-   </ListGroupItem>
-   <ListGroupItem>
-     <b>IMO: </b> {selectedVessel?.IMONumber ?? 'N/A'}
-   </ListGroupItem>
-   <ListGroupItem>
-     <b>Call sign: </b> {selectedVessel?.CallSign ?? 'N/A'}
-   </ListGroupItem>
-   <ListGroupItem>
-     <b>ShipType: </b> {selectedVessel?.ShipType ?? 'N/A'}
-   </ListGroupItem>
-   <ListGroupItem>
-              <b>Latitude/Longitude: </b> 
-              {selectedVessel?.Latitude !== undefined 
-                ? (() => {
-                    const latAbs = Math.abs(selectedVessel.Latitude);
-                    const latDeg = Math.floor(latAbs);
-                    const latMinNotTrunc = (latAbs - latDeg) * 60;
-                    const latMin = Math.floor(latMinNotTrunc);
-                    const latSec = Math.floor((latMinNotTrunc - latMin) * 60);
-                    const latDir = selectedVessel.Latitude >= 0 ? 'N' : 'S';
-                    const lonAbs = Math.abs(selectedVessel.Longitude);
-                    const lonDeg = Math.floor(lonAbs);
-                    const lonMinNotTrunc = (lonAbs - lonDeg) * 60;
-                    const lonMin = Math.floor(lonMinNotTrunc);
-                    const lonSec = Math.floor((lonMinNotTrunc - lonMin) * 60);
-                    const lonDir = selectedVessel.Longitude >= 0 ? 'E' : 'W';
-                    return `${latDeg}°${latMin}'${latSec}"${latDir} / ${lonDeg}°${lonMin}'${lonSec}"${lonDir}`;
-                  })()
-                : 'N/A'}
-    </ListGroupItem>
-   <ListGroupItem>
-     <b>Destination: </b> {selectedVessel?.Destination ?? 'N/A'}
-   </ListGroupItem>
-   <ListGroupItem>
-              <b>DateTimeUTC: </b> 
-              {selectedVessel?.DateTimeUTC 
-                ? (() => {
-                    const date = new Date(selectedVessel.DateTimeUTC);
-                    const hours = String(date.getHours()).padStart(2, '0');
-                    const minutes = String(date.getMinutes()).padStart(2, '0');
-                    const seconds = String(date.getSeconds()).padStart(2, '0');
-                    const day = String(date.getDate()).padStart(2, '0');
-                    const month = String(date.getMonth() + 1).padStart(2, '0');
-                    const year = date.getFullYear();
-                    return `${hours}:${minutes}:${seconds} ${day}/${month}/${year}`;
-                  })()
-                : 'N/A'}
-   </ListGroupItem>
-   <ListGroupItem>
-     <b>RateOfTurn: </b> 
-     {selectedVessel?.RateOfTurn ? `${selectedVessel.RateOfTurn}°/min` : 'N/A'}
-   </ListGroupItem>
-   <ListGroupItem>
-     <b>SpeedOverGround: </b> 
-     {selectedVessel?.SpeedOverGround ? selectedVessel?.SpeedOverGround == 102.3 ? 'Speed is not available' : `${selectedVessel.SpeedOverGround} knots` : 'N/A'}
-   </ListGroupItem>
-   <ListGroupItem>
-     <b>CourseOverGround: </b> 
-     {selectedVessel?.CourseOverGround ? selectedVessel?.CourseOverGround == 360 ? 'Not available' : `${selectedVessel.CourseOverGround}°` : 'N/A'}
-   </ListGroupItem>
-   <ListGroupItem>
-     <b>TrueHeading: </b> 
-     {selectedVessel?.TrueHeading ?  (selectedVessel?.TrueHeading == 511 ? 'Not turning' : `${selectedVessel.TrueHeading}°`) : 'N/A'}
-   </ListGroupItem>
-   <ListGroupItem>
-     <b>Dimension: </b> {selectedVessel?.ShipLength ? selectedVessel?.ShipLength + 'm' : "N/A"} x {selectedVessel?.ShipWidth ? selectedVessel?.ShipWidth + 'm' : "N/A"}
-   </ListGroupItem>
-   
- </ListGroup>
-          <div className="text-center d-flex flex-row gap-2 align-items-center mt-3">
-            <Select
-              options={[
-                { value: "1", label: "1H" },
-                { value: "3", label: "3H" },
-                { value: "6", label: "6H" },
-                { value: "12", label: "12H" },
-                { value: "24", label: "24H" },
-                { value: "48", label: "48H" },
-                { value: "72", label: "72H" }
-              ]}
-              value={selectedTime}
-              onChange={(e) => {
-                setSelectedTime(e)
-              }}
-            />
-            
-            {(viewingRoute && selectedVessel?.MMSI === viewingRoute.MMSI) ? (
-              <Button 
-              color="primary" 
-              onClick={() => {
-                setViewingRoute(null);
-                // Clear path features when hiding route
-                vectorSource
-                  .getFeatures()
-                  .filter((feature) => feature.get("type") === "path" || feature.get("type") === "pathVessel")
-                  .forEach((feature) => vectorSource.removeFeature(feature));
-              }} 
-              className="flex-grow-1"
-            >
-              Ẩn hành trình
-            </Button>
-            )  :
-            (
-              <Button
-              className="d-inline-flex align-items-center justify-content-center"
-              color="primary"
-              onClick={() => {
-                // getVesselRoute(selectedVessel?.MMSI)
-                setViewingRoute(selectedVessel)
-              }}
-              disabled={!selectedVessel?.MMSI || isLoading}
-            >
-              {isLoading && <Spinner size="sm" className="me-2" />}
-              Xem hành trình
-            </Button>
-
-            )
-
-            }
-          </div>
-        </>
-      )}
-      {!!selectedVessel?.AidTypeID && (
-        <>
+      {/* Body: scrollable content */}
+      <div style={{ overflowY: 'auto', padding: '8px 0', flex: 1 }}>
+        {selectedVessel && (
           <ListGroup>
             <ListGroupItem>
-              <b>MMSI: </b> {selectedVessel?.MMSI ?? "N/A"}
+              <b>MMSI: </b> {selectedVessel?.MMSI ?? 'N/A'}
             </ListGroupItem>
             <ListGroupItem>
-              <b>Type Of Aid To Navigation: </b> {selectedVessel?.AidType ?? "N/A"}
+              <b>IMO: </b> {selectedVessel?.IMONumber ?? 'N/A'}
             </ListGroupItem>
             <ListGroupItem>
-              <b>Dimension: </b> {selectedVessel?.ShipLength ?? "N/A"}m x {selectedVessel?.ShipWidth ?? "N/A"}m
+              <b>VesselName: </b> {selectedVessel?.VesselName ?? 'N/A'}
             </ListGroupItem>
             <ListGroupItem>
-              <b>Latitude/Longitude: </b> 
-              {selectedVessel?.Latitude !== undefined 
+              <b>SpeedOverGround: </b>
+              {selectedVessel?.SpeedOverGround
+                ? selectedVessel?.SpeedOverGround == 102.3
+                  ? 'Speed is not available'
+                  : `${selectedVessel.SpeedOverGround} knots`
+                : 'N/A'}
+            </ListGroupItem>
+            <ListGroupItem>
+              <b>Latitude/Longitude: </b>
+              {selectedVessel?.Latitude !== undefined && selectedVessel?.Longitude !== undefined
                 ? (() => {
-                    const latAbs = Math.abs(selectedVessel.Latitude);
-                    const latDeg = Math.floor(latAbs);
-                    const latMinNotTrunc = (latAbs - latDeg) * 60;
-                    const latMin = Math.floor(latMinNotTrunc);
-                    const latSec = Math.floor((latMinNotTrunc - latMin) * 60);
-                    const latDir = selectedVessel.Latitude >= 0 ? 'N' : 'S';
-                    const lonAbs = Math.abs(selectedVessel.Longitude);
-                    const lonDeg = Math.floor(lonAbs);
-                    const lonMinNotTrunc = (lonAbs - lonDeg) * 60;
-                    const lonMin = Math.floor(lonMinNotTrunc);
-                    const lonSec = Math.floor((lonMinNotTrunc - lonMin) * 60);
-                    const lonDir = selectedVessel.Longitude >= 0 ? 'E' : 'W';
-                    return `${latDeg}° ${latMin}' ${latSec}" ${latDir} / ${lonDeg}° ${lonMin}' ${lonSec}" ${lonDir}`;
+                    const latAbs = Math.abs(selectedVessel.Latitude)
+                    const latDeg = Math.floor(latAbs)
+                    const latMinNotTrunc = (latAbs - latDeg) * 60
+                    const latMin = Math.floor(latMinNotTrunc)
+                    const latSec = Math.floor((latMinNotTrunc - latMin) * 60)
+                    const latDir = selectedVessel.Latitude >= 0 ? 'N' : 'S'
+                    const lonAbs = Math.abs(selectedVessel.Longitude)
+                    const lonDeg = Math.floor(lonAbs)
+                    const lonMinNotTrunc = (lonAbs - lonDeg) * 60
+                    const lonMin = Math.floor(lonMinNotTrunc)
+                    const lonSec = Math.floor((lonMinNotTrunc - lonMin) * 60)
+                    const lonDir = selectedVessel.Longitude >= 0 ? 'E' : 'W'
+                    return `${latDeg}°${latMin}'${latSec}"${latDir} / ${lonDeg}°${lonMin}'${lonSec}"${lonDir}`
                   })()
                 : 'N/A'}
             </ListGroupItem>
             <ListGroupItem>
-              <b>DateTimeUTC: </b> 
-              {selectedVessel?.DateTimeUTC 
+              <b>DateTimeUTC: </b>
+              {selectedVessel?.DateTimeUTC
                 ? (() => {
-                    const date = new Date(selectedVessel.DateTimeUTC);
-                    const hours = String(date.getHours()).padStart(2, '0');
-                    const minutes = String(date.getMinutes()).padStart(2, '0');
-                    const seconds = String(date.getSeconds()).padStart(2, '0');
-                    const day = String(date.getDate()).padStart(2, '0');
-                    const month = String(date.getMonth() + 1).padStart(2, '0');
-                    const year = date.getFullYear();
-                    return `${hours}:${minutes}:${seconds} ${day}/${month}/${year}`;
+                    const date = new Date(selectedVessel.DateTimeUTC)
+                    const hours = String(date.getHours()).padStart(2, '0')
+                    const minutes = String(date.getMinutes()).padStart(2, '0')
+                    const seconds = String(date.getSeconds()).padStart(2, '0')
+                    const day = String(date.getDate()).padStart(2, '0')
+                    const month = String(date.getMonth() + 1).padStart(2, '0')
+                    const year = date.getFullYear()
+                    return `${hours}:${minutes}:${seconds} ${day}/${month}/${year}`
                   })()
                 : 'N/A'}
             </ListGroupItem>
           </ListGroup>
-        </>
+        )}
+      </div>
+
+      {/* Footer: fixed-duration buttons */}
+      {!selectedVessel?.AidTypeID && (
+        <div
+          style={{
+            position: 'sticky',
+            bottom: 0,
+            backgroundColor: 'white',
+            padding: '4px',
+            borderTop: '1px solid rgba(0,0,0,0.06)',
+            borderBottomLeftRadius: '6px',
+            borderBottomRightRadius: '6px',
+            display: 'flex',
+            gap: '3px',
+            alignItems: 'center',
+            justifyContent: 'space-between'
+          }}
+        >
+          <div style={{ display: 'flex', gap: '3px', alignItems: 'center', flex: 1, flexWrap: 'nowrap', overflow: 'hidden' }}>
+            {[
+              { label: '6H', hours: 6 },
+              { label: '12H', hours: 12 },
+              { label: '24H', hours: 24 },
+              { label: '48H', hours: 48 },
+              { label: '7D', hours: 7 * 24 },
+              { label: '15D', hours: 15 * 24 }
+            ].map((opt) => (
+              <Button
+                key={opt.label}
+                color="primary"
+                style={{ padding: '2px 6px', minWidth: 36, fontSize: '10px' }}
+                onClick={async () => {
+                  if (!selectedVessel?.MMSI) return
+                  try {
+                    setIsLoading(true)
+                    await getVesselRoute(selectedVessel, true, opt.hours)
+                  } catch (e) {
+                    console.error(e)
+                  } finally {
+                    setIsLoading(false)
+                  }
+                }}
+                disabled={!selectedVessel?.MMSI || isLoading}
+              >
+                {isLoading ? <Spinner size="sm" /> : opt.label}
+              </Button>
+            ))}
+          </div>
+
+          <div style={{ marginLeft: 4 }}>
+            <Button
+              color="secondary"
+              outline
+              style={{ padding: '2px 6px', minWidth: 36, fontSize: '10px' }}
+              onClick={() => {
+                // hide route and close panel
+                setViewingRoute(null)
+                setSelectedVessel(null)
+                vectorSource
+                  .getFeatures()
+                  .filter((feature) => feature.get('type') === 'path' || feature.get('type') === 'pathVessel')
+                  .forEach((feature) => vectorSource.removeFeature(feature))
+              }}
+            >
+              Ẩn
+            </Button>
+          </div>
+        </div>
       )}
     </div>
   )
@@ -399,6 +381,7 @@ const AISMap = () => {
   const mapInstance = useRef()
   const [isLoading, setIsLoading] = useState(false)
   const [viewingRoute, setViewingRoute] = useState(null)
+  const [clickPosition, setClickPosition] = useState(null)
   const selectedVessel = useAisStore((state) => state.selectedVessel)
   const setSelectedVessel = useAisStore((state) => state.setSelectedVessel)
   const vesselList = useAisStore((state) => state.vesselList)
@@ -444,13 +427,15 @@ const AISMap = () => {
         const vessels = response?.DM_Tau || []
         setVesselList(vessels)
         renderVessels(vessels)
-        if (viewingRoute) {
+        // Use current state from store to avoid stale closures and remove dependency on viewingRoute
+        const currentViewingRoute = useAisStore.getState().viewingRoute
+        if (currentViewingRoute) {
           // TODO: Sau này sửa bên Config Vessel thì bỏ check
-          const vesselExists = vessels.some(vessel => vessel.MMSI === viewingRoute.MMSI)
+          const vesselExists = vessels.some(vessel => vessel.MMSI === currentViewingRoute.MMSI)
           if (vesselExists) {
-            getVesselRoute(viewingRoute, false)
+            getVesselRoute(currentViewingRoute, false)
           } else {
-            setViewingRoute(null)
+            useAisStore.getState().setViewingRoute(null)
           }
         }
       } catch (error) {
@@ -458,7 +443,7 @@ const AISMap = () => {
         toast.error("Có lỗi xảy ra khi tải danh sách tàu")
       }
     },
-    [renderVessels, viewingRoute]
+    [renderVessels] // Removed viewingRoute from deps; using getState() instead
   )
   
   // Tách riêng việc lấy route
@@ -473,11 +458,12 @@ const AISMap = () => {
     renderVessels(vesselList)
   }, [vesselList])
 
-  const getVesselRoute = async (vessel, isAnimate = true) => {
+  const getVesselRoute = async (vessel, isAnimate = true, hours = null) => {
     if (!vessel.MMSI) return
     try {
       setIsLoading(true)
-      const response = await vesselService.getVesselRoute({ MMSI: vessel.MMSI, Hours: selectedTime?.value || 24 })
+      const hoursToUse = hours ?? (selectedTime?.value ? Number(selectedTime.value) : 24)
+      const response = await vesselService.getVesselRoute({ MMSI: vessel.MMSI, Hours: hoursToUse })
       const points = (response?.DM_HanhTrinh || []).map((item) => ({
         longitude: item.Longitude,
         latitude: item.Latitude,
@@ -492,7 +478,7 @@ const AISMap = () => {
         return
       }
       renderPath(points, vessel)
-      setViewingRoute(vessel)
+  setViewingRoute(vessel)
 
       // Zoom lại điểm bắt đầu với hiệu ứng
       if (isAnimate && points.length > 0) {
@@ -504,7 +490,7 @@ const AISMap = () => {
           zoom: 11,
           duration: 1500 // Thời gian hiệu ứng zoom
         })
-      }
+  }
     } catch (error) {
       console.error("Error fetching vessel route:", error)
       toast.error("Có lỗi xảy ra khi tải hành trình tàu")
@@ -575,7 +561,31 @@ const AISMap = () => {
     map.on("singleclick", (event) => {
       const feature = map.forEachFeatureAtPixel(event.pixel, (feat) => feat)
       if (feature?.get("type") === "vessel") {
-        setSelectedVessel(tranformApiData(feature.get("data")))
+        const pixel = event.pixel;
+        const element = document.getElementById('infoPanel');
+        if (element) {
+          const mapSize = map.getSize();
+          let x = pixel[0];
+          let y = pixel[1];
+          
+          // Adjust position if it would go off the right edge
+          const elementWidth = 300; // maxWidth from style
+          if (x + elementWidth + 40 > mapSize[0]) {
+            x = x - elementWidth - 40;
+          }
+          
+          // Adjust position if it would go off the bottom edge
+          const elementHeight = element.offsetHeight;
+          if (y + elementHeight > mapSize[1]) {
+            y = mapSize[1] - elementHeight - 20;
+          }
+          
+          setClickPosition([x, y]);
+        }
+        setSelectedVessel(tranformApiData(feature.get("data")));
+      } else {
+        setSelectedVessel(null);
+        setClickPosition(null);
       }
     })
 
@@ -673,7 +683,6 @@ const AISMap = () => {
               ></div>
               <InfoPanel
                 renderPath={renderPath}
-                isPanelOpen={selectedVessel}
                 selectedVessel={selectedVessel}
                 getVesselRoute={getVesselRoute}
                 isLoading={isLoading}
@@ -683,6 +692,7 @@ const AISMap = () => {
                 selectedTime={selectedTime}
                 setSelectedTime={setSelectedTime}
                 vectorSource={vectorSource}
+                position={clickPosition}
               />
             </CardBody>
           </Card>
