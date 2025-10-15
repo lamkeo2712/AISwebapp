@@ -45,7 +45,24 @@ const TableCommon = ({
     if (header.column.columnDef.meta?.allowSearch) {
       const searchType = header.column.columnDef.meta?.searchType
       if (searchType === "select") {
-        return <Select value={""} onChange={() => {}} options={[]} />
+        const options = header.column.columnDef.meta?.options || []
+        const selectedValue = options.find(opt => opt.value === searchValues[header.id])
+        return (
+          <Select
+            value={selectedValue || null}
+            onChange={(option) => handleSearchChange(header.id, option?.value || "")}
+            options={options}
+            isClearable
+            placeholder="Chọn..."
+            className="react-select-container"
+            classNamePrefix="react-select"
+            menuPortalTarget={document.body}
+            styles={{
+              menuPortal: (base) => ({ ...base, zIndex: 9999 }),
+              menu: (base) => ({ ...base, zIndex: 9999 })
+            }}
+          />
+        )
       } else if (searchType === "date") {
         return <Flatpickr className="form-control" options={{ dateFormat: "d/m/Y" }} placeholder="" />
       }
