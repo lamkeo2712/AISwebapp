@@ -15,6 +15,7 @@ import LightDark from "../components/LightDark"
 import useLayoutStore from "../store/useLayoutStore"
 import ConfigVessel from "../components/ConfigVessel"
 import SearchVessel from "../components/SearchVessel"
+import HistoryVessel from "../components/HistoryVessel"
 
 const Header = ({ onChangeLayoutMode, layoutModeType, headerClass }) => {
   const sidebarVisibilitytype = useLayoutStore((state) => state.sidebarVisibilitytype)
@@ -107,6 +108,7 @@ const Header = ({ onChangeLayoutMode, layoutModeType, headerClass }) => {
                 </span>
               </button>
               <ConfigVessel />
+              <HistoryVessel />
               <SearchVessel />
             </div>
 
