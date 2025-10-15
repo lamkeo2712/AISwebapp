@@ -62,18 +62,18 @@ const Navdata = () => {
     //     setIscurrentState("Users")
     //   }
     // },
-    // {
-    //   id: "map",
-    //   label: "Quản lý tàu thuyền",
-    //   icon: "mdi mdi-ferry",
-    //   link: "/ship",
-    //   stateVariables: isMap,
-    //   click: function (e) {
-    //     e.preventDefault()
-    //     setIsShip(!isMap)
-    //     setIscurrentState("Ship")
-    //   }
-    // }
+    {
+      id: "map",
+      label: "Quản lý tàu thuyền",
+      icon: "mdi mdi-ferry",
+      link: "/ship",
+      stateVariables: isMap,
+      click: function (e) {
+        e.preventDefault()
+        setIsShip(!isMap)
+        setIscurrentState("Ship")
+      }
+    }
   ]
   return <React.Fragment>{menuItems}</React.Fragment>
 }

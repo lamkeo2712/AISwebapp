@@ -109,3 +109,60 @@ td {
   align-items: center;
   justify-content: center;
 }
+
+/* Sticky table header for Ship page */
+.ship-table-scroll {
+  position: relative;
+}
+
+.ship-table-scroll .table-responsive {
+  overflow: visible !important;
+}
+
+.ship-table-scroll table {
+  position: relative;
+}
+
+.ship-table-scroll thead th {
+  position: sticky !important;
+  background: #f3f6f9 !important;
+  box-shadow: 0 2px 2px -1px rgba(0, 0, 0, 0.1);
+}
+
+/* First row (header row) */
+.ship-table-scroll thead tr:first-child th {
+  top: 0 !important;
+  z-index: 12 !important;
+}
+
+/* Second row (search row if exists) */
+.ship-table-scroll thead tr:nth-child(2) th {
+  top: 50px !important; /* adjust based on your header height */
+  z-index: 11 !important;
+  background: #f3f6f9 !important;
+}
+
+/* React Select dropdown z-index fix */
+.react-select-container {
+  position: relative;
+  z-index: 15;
+}
+
+.react-select__menu {
+  z-index: 9999 !important;
+  position: absolute !important;
+}
+
+.react-select__menu-portal {
+  z-index: 9999 !important;
+}
+
+/* Ensure table container allows overflow */
+.table-container {
+  overflow: visible !important;
+}
+
+.table-responsive {
+  overflow-x: auto;
+  overflow-y: visible !important;
+}
