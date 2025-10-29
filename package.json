@@ -13,6 +13,7 @@
     "prettier:fix": "prettier --write \"src/**/(*.tsx|*.ts|*.css|*.scss)\""
   },
   "dependencies": {
+    "@ant-design/icons": "^6.1.0",
     "@casl/ability": "^6.7.1",
     "@hookform/resolvers": "^3.3.4",
     "@tanstack/match-sorter-utils": "^8.15.1",

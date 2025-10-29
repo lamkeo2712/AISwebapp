@@ -2,11 +2,13 @@ import React, { useCallback, useEffect, useState } from "react"
 import { Button, Col, Dropdown, DropdownMenu, DropdownToggle, Row } from "reactstrap"
 import useAisStore from "../store/useAisStore"
 import { vesselService } from "../services/vessel-service"
+import ZoneManager from "./ZoneManager"
 
 const noop = () => {}
 
 const HistoryVessel = ({ onAction1 = noop, onAction2 = noop, onAction3 = noop }) => {
   const [isHistoryVesselDropdown, setIsHistoryVesselDropdown] = useState(false)
+  const [showZoneModal, setShowZoneModal] = useState(false)
   const setVesselList = useAisStore((state) => state.setVesselList)
   const thamSoTau = useAisStore((state) => state.thamSoTau)
 
@@ -49,11 +51,11 @@ const HistoryVessel = ({ onAction1 = noop, onAction2 = noop, onAction3 = noop })
                     color="light"
                     className="w-100 mb-2"
                     style={{ height: 40 }}
-                    onClick={onAction1}
+                    onClick={() => setShowZoneModal(true)}
                     aria-label="Action 1"
                     title="Action 1"
                   >
-                    <i className="ri-time-line me-1"></i> Tra cứu tàu trong hệ thống
+                    <i className="ri-time-line me-1"></i> Quản lý vùng
                   </Button>
                   <Button
                     color="light"
@@ -81,6 +83,8 @@ const HistoryVessel = ({ onAction1 = noop, onAction2 = noop, onAction3 = noop })
           </div>
         </DropdownMenu>
       </Dropdown>
+      {/* Zone management dialog */}
+      <ZoneManager isOpen={showZoneModal} onClose={() => setShowZoneModal(false)} onOpen={() => setShowZoneModal(true)} />
     </React.Fragment>
   )
 }
