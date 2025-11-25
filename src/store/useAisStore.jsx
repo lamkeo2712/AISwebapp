@@ -19,6 +19,16 @@ const useAisStore = create((set) => ({
       thamSoTau: { ...state.thamSoTau, ...value } 
     }))
   }
+  ,// zone drawing state
+  isDrawingZone: false,
+  polygonCoords: [],
+  startDrawingZone: () => set(() => ({ isDrawingZone: true })),
+  stopDrawingZone: () => set(() => ({ isDrawingZone: false })),
+  clearPolygonCoords: () => set(() => ({ polygonCoords: [] })),
+  setPolygonCoords: (coords) => set(() => ({ polygonCoords: coords })),
+  isZoneEditorOpen: false,
+  openZoneEditor: () => set(() => ({ isZoneEditorOpen: true })),
+  closeZoneEditor: () => set(() => ({ isZoneEditorOpen: false })),
 }))
 
 export default useAisStore

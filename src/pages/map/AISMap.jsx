@@ -13,6 +13,11 @@ import { XYZ } from "ol/source"
 import VectorSource from "ol/source/Vector"
 import { Fill, Icon, Stroke, Style, Text } from "ol/style"
 import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from "react"
+import Draw from 'ol/interaction/Draw'
+import { toLonLat } from 'ol/proj'
+import { zoneService } from "../../services/zone-service"
+import WKT from 'ol/format/WKT'
+import { useAuth } from "../../hooks/useAuth"
 import { toast } from "react-toastify"
 import { Button, Card, CardBody, Container, Spinner } from "reactstrap"
 import { vesselService } from "../../services/vessel-service"
@@ -177,10 +182,51 @@ const AISMap = () => {
 
   const mapRef = useRef()
   const mapInstance = useRef()
+  const zonesSource = useMemo(() => new VectorSource(), [])
+  const zonesLayerRef = useRef(null)
   const [isLoading, setIsLoading] = useState(false)
   const [viewingRoute, setViewingRoute] = useState(null)
   const [clickPosition, setClickPosition] = useState(null)
+  const [drawnCoords, setDrawnCoords] = useState([])
+  const [drawnFeature, setDrawnFeature] = useState(null)
   const [mapType, setMapType] = useState(localStorage.getItem("mapType") || "terrain")
+  const { user } = useAuth()
+  // derive numeric user ID (supports different naming conventions)
+  const userId = user?.id ?? user?.ID ?? user?.UserID ?? user?.userId
+
+  const loadZones = useCallback(async () => {
+    try {
+      if (!userId) return
+      zonesSource.clear() // clear existing zones
+      const res = await zoneService.searchZones({ UserID: userId, PageSize: 100, PageIndex: 0 }, String(userId))
+      // detect array of zones objects
+      const arrays = Object.values(res).filter(Array.isArray)
+      const list = arrays.find(arr => arr.length && arr[0].hasOwnProperty('Polygon')) || []
+      const format = new WKT()
+      list.forEach((z) => {
+        if (z.Polygon) {
+          try {
+            // parse WKT in EPSG:4326 and project to map EPSG:3857
+            const feature = format.readFeature(z.Polygon, {
+              dataProjection: 'EPSG:4326',
+              featureProjection: 'EPSG:3857'
+            })
+            zonesSource.addFeature(feature)
+          } catch (e) {
+            console.error('Failed to parse zone WKT:', e, z.Polygon)
+          }
+        }
+      })
+    } catch (e) {
+      console.error('Error loading zones on map:', e)
+    }
+  }, [zonesSource, userId])
+
+  useEffect(() => {
+    const handleZonesUpdated = () => loadZones()
+    window.addEventListener('zones-updated', handleZonesUpdated)
+    return () => window.removeEventListener('zones-updated', handleZonesUpdated)
+  }, [loadZones])
 
   const selectedVessel = useAisStore((s) => s.selectedVessel)
   const setSelectedVessel = useAisStore((s) => s.setSelectedVessel)
@@ -190,6 +236,10 @@ const AISMap = () => {
 
   const vectorSource = useMemo(() => new VectorSource(), [])
   const trackSource = useMemo(() => new VectorSource(), []) // ★ CHANGED: nguồn tuyến riêng
+  const isDrawingZone = useAisStore(s => s.isDrawingZone)
+  const startDrawingZone = useAisStore(s => s.startDrawingZone)
+  const stopDrawingZone = useAisStore(s => s.stopDrawingZone)
+  const setPolygonCoords = useAisStore(s => s.setPolygonCoords)
 
   const shipsLayerRef = useRef(null) // để thay đổi base layer URL
   const contextOverlayRef = useRef(null);
@@ -241,6 +291,32 @@ const AISMap = () => {
   )
 
 
+  useEffect(() => {
+    // handle drawing interaction
+    if (!mapInstance.current) return
+    let draw
+    if (isDrawingZone) {
+      draw = new Draw({ source: vectorSource, type: 'Polygon' })
+      mapInstance.current.addInteraction(draw)
+      draw.on('drawend', (e) => {
+        const feat = e.feature
+        const coords = feat.getGeometry().getCoordinates()[0]
+        const wgsCoords = coords.map((c) => toLonLat(c))
+        setDrawnCoords(wgsCoords)
+        setDrawnFeature(feat)
+        mapInstance.current.removeInteraction(draw)
+      })
+    }
+    return () => {
+      if (draw) mapInstance.current.removeInteraction(draw)
+    }
+  }, [isDrawingZone])
+
+    // re-render vessels when list changes
+    useEffect(() => {
+      renderVessels(vesselList)
+    }, [vesselList, renderVessels])
+  // re-render vessels when list changes
   useEffect(() => {
     renderVessels(vesselList)
   }, [vesselList, renderVessels])
@@ -350,6 +426,15 @@ const AISMap = () => {
       zIndex: 5
     })
 
+    const zonesLayer = new VectorLayer({
+      source: zonesSource,
+      style: new Style({
+        fill: new Fill({ color: 'rgba(255,0,0,0.2)' }),
+        stroke: new Stroke({ color: 'red', width: 2 })
+      }),
+      zIndex: 20
+    })
+    zonesLayerRef.current = zonesLayer
     const map = new Map({
       target: mapRef.current,
       layers: [
@@ -467,6 +552,11 @@ const AISMap = () => {
     addFeatures(hoangSa, MAP_STYLES.boundary)
     addFeatures(truongSa, MAP_STYLES.boundary)
     addFeatures(offshore, MAP_STYLES.offshore)
+    // add zone layer
+    map.addLayer(zonesLayer)
+
+    // fetch and render saved zones
+    loadZones()
 
     const intervalId = setInterval(() => {
       const current = useAisStore.getState().thamSoTau
@@ -491,6 +581,33 @@ const AISMap = () => {
 
   return (
     <React.Fragment>
+      {/* Zone draw confirm/cancel */}
+      {drawnCoords.length > 0 && (
+        <div style={{ position: 'absolute', top: 100, left: '50%', transform: 'translateX(-50%)', zIndex: 1001, display: 'flex', gap: 10 }}>
+          <Button color='success' onClick={() => {
+            setPolygonCoords(drawnCoords)
+            window.dispatchEvent(new CustomEvent('zone-draw-confirmed'))
+            if (drawnFeature) {
+              vectorSource.removeFeature(drawnFeature)
+            }
+            stopDrawingZone()
+            setDrawnCoords([])
+            setDrawnFeature(null)
+          }}>
+            Xác nhận
+          </Button>
+          <Button color="danger" onClick={() => { 
+            if (drawnFeature) {
+              vectorSource.removeFeature(drawnFeature)
+            }
+            stopDrawingZone(); 
+            setDrawnCoords([]); 
+            setDrawnFeature(null);
+          }}>
+            Hủy
+          </Button>
+        </div>
+      )}
       <div className="page-content pb-0">
         <Container fluid className="ms-0 px-0">
           <div style={{ position: "absolute", right: 16, top: 86, zIndex: 1001, display: "flex", gap: 6 }}>

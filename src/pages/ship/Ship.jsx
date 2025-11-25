@@ -19,7 +19,9 @@ const Ship = () => {
         value: item.ShipType || "",
         label: item.ShipType || ""
       }))
-      setShipTypes(types)
+      // Prepend an 'All' option for ship type filter
+      const defaultOption = { value: "", label: "Tất cả" }
+      setShipTypes([defaultOption, ...types])
     } catch (error) {
       console.error("Error fetching ship types:", error)
     }
@@ -43,6 +45,18 @@ const Ship = () => {
     fetchShipTypes()
     fetchShips()
   }, [fetchShipTypes, fetchShips])
+
+  // Populate shipTypes based on unique ShipType values from the fetched ships
+  useEffect(() => {
+    const uniqueTypes = Array.from(
+      new Set(
+        data.map(item => item.ShipType).filter(type => type)
+      )
+    )
+    const typeOptions = uniqueTypes.map(type => ({ value: type, label: type }))
+    // Prepend 'Tất cả'
+    setShipTypes([{ value: "", label: "Tất cả" }, ...typeOptions])
+  }, [data])
 
   const filteredData = useMemo(() => {
     const activeFilters = Object.entries(searchValues).filter(([, value]) => value)
