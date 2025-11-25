@@ -3,12 +3,14 @@ import { Button, Col, Dropdown, DropdownMenu, DropdownToggle, Row } from "reacts
 import useAisStore from "../store/useAisStore"
 import { vesselService } from "../services/vessel-service"
 import ZoneManager from "./ZoneManager"
+import TrackVesselModal from "./TrackVesselModal"
 
 const noop = () => {}
 
 const HistoryVessel = ({ onAction1 = noop, onAction2 = noop, onAction3 = noop }) => {
   const [isHistoryVesselDropdown, setIsHistoryVesselDropdown] = useState(false)
   const [showZoneModal, setShowZoneModal] = useState(false)
+  const [showTrackModal, setShowTrackModal] = useState(false)
   const setVesselList = useAisStore((state) => state.setVesselList)
   const thamSoTau = useAisStore((state) => state.thamSoTau)
 
@@ -61,7 +63,10 @@ const HistoryVessel = ({ onAction1 = noop, onAction2 = noop, onAction3 = noop })
                     color="light"
                     className="w-100 mb-2"
                     style={{ height: 40 }}
-                    onClick={onAction2}
+                    onClick={() => {
+                      setShowTrackModal(true)
+                      onAction2()
+                    }}
                     aria-label="Action 2"
                     title="Action 2"
                   >
@@ -85,6 +90,8 @@ const HistoryVessel = ({ onAction1 = noop, onAction2 = noop, onAction3 = noop })
       </Dropdown>
       {/* Zone management dialog */}
       <ZoneManager isOpen={showZoneModal} onClose={() => setShowZoneModal(false)} onOpen={() => setShowZoneModal(true)} />
+      {/* Track vessel dialog */}
+      <TrackVesselModal isOpen={showTrackModal} onClose={() => setShowTrackModal(false)} />
     </React.Fragment>
   )
 }

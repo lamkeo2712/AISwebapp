@@ -228,11 +228,40 @@ const AISMap = () => {
     return () => window.removeEventListener('zones-updated', handleZonesUpdated)
   }, [loadZones])
 
+
   const selectedVessel = useAisStore((s) => s.selectedVessel)
   const setSelectedVessel = useAisStore((s) => s.setSelectedVessel)
   const vesselList = useAisStore((s) => s.vesselList)
   const setVesselList = useAisStore((s) => s.setVesselList)
   const thamSoTau = useAisStore((s) => s.thamSoTau)
+
+  // Listen for goto/track events from UI to center map and set selected vessel
+  useEffect(() => {
+    const handler = (e) => {
+      const v = e?.detail
+      if (!v) return
+      // normalize coords
+      const lon = Number(v.Longitude ?? v.Lon ?? v.Long ?? v.longitude)
+      const lat = Number(v.Latitude ?? v.Lat ?? v.lat ?? v.latitude)
+      try {
+        setSelectedVessel(v)
+        if (mapInstance.current && Number.isFinite(lon) && Number.isFinite(lat)) {
+          const view = mapInstance.current.getView()
+          const center = fromLonLat([lon, lat])
+          view.animate({ center, zoom: Math.max(view.getZoom ? view.getZoom() : 11, 11), duration: 800 })
+        }
+      } catch (err) {
+        console.error('Error handling goto/track event', err)
+      }
+    }
+
+    window.addEventListener('goto-vessel', handler)
+    window.addEventListener('track-vessel', handler)
+    return () => {
+      window.removeEventListener('goto-vessel', handler)
+      window.removeEventListener('track-vessel', handler)
+    }
+  }, [setSelectedVessel])
 
   const vectorSource = useMemo(() => new VectorSource(), [])
   const trackSource = useMemo(() => new VectorSource(), []) // ★ CHANGED: nguồn tuyến riêng
