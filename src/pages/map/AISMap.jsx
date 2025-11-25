@@ -282,21 +282,21 @@ const AISMap = () => {
     if (!vessel?.MMSI) return
     try {
       setIsLoading(true)
-      const response = await vesselService.getVesselRoute({ MMSI: vessel.MMSI, Hours: hours })
-      const points = (response?.DM_HanhTrinh || []).map((item) => ({
-        longitude: item.Longitude,
-        latitude: item.Latitude,
-        vesselName: item.VesselName,
-        cog: item.CourseOverGround,
-        sog: item.SpeedOverGround,
-        datetimeutc: item.DateTimeUTC,
-        color: item.ShipTypeColor
+      const response = await vesselService.getVesselRoute(vessel.MMSI, hours )
+      const points = response.map((item) => ({
+        longitude: item.longitude,
+        latitude: item.latitude,
+        vesselName: vessel.VesselName,
+        cog: item.courseOverGround,
+        sog: item.speedOverGround,
+        datetimeutc: item.dateTimeUTC,
+        color: vessel.ShipTypeColor
       }))
       if (points.length === 0) {
         setViewingRoute(null)
         return
       }
-
+      console.log(points)
       renderPath(points, vessel)
       setViewingRoute(vessel)
 
