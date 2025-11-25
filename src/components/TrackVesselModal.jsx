@@ -50,7 +50,6 @@ const TrackVesselModal = ({ isOpen, onClose }) => {
     setLoadingTracked(true)
     try {
       const res = await vesselService.getTrackedVessels({ UserID: userId, PageSize: 100, PageIndex: 0 })
-      // API returns object(s) with arrays; find the array with MMSI or VesselName
       const arrays = Object.values(res || {}).filter((v) => Array.isArray(v))
       const list = arrays.find((arr) => arr.length > 0 && (arr[0].MMSI || arr[0].VesselName || arr[0].id)) || []
       setTracked(list.map((v) => tranformApiData(v)))

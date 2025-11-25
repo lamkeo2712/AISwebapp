@@ -32,7 +32,7 @@ import hoangSa from "./data/HoangSa.json"
 import offshore from "./data/Offshore.json"
 import truongSa from "./data/TruongSa.json"
 
-const INITIAL_CENTER = [106.81196689833655, 20.728998788877234]
+const INITIAL_CENTER = [106.6297, 10.8231]
 const INITIAL_ZOOM = 7
 
 const MAP_STYLES = {
@@ -189,6 +189,7 @@ const AISMap = () => {
   const [clickPosition, setClickPosition] = useState(null)
   const [drawnCoords, setDrawnCoords] = useState([])
   const [drawnFeature, setDrawnFeature] = useState(null)
+  const [tracked, setTracked] = useState([])
   const [mapType, setMapType] = useState(localStorage.getItem("mapType") || "terrain")
   const { user } = useAuth()
   // derive numeric user ID (supports different naming conventions)
@@ -275,6 +276,8 @@ const AISMap = () => {
   const contextRootRef = useRef(null);
   const contextElRef = useRef(null);
   const popupOverlayRef = useRef(null)   // popup hover track point
+  const trackedRef = useRef(tracked);
+  useEffect(() => { trackedRef.current = tracked; }, [tracked]);
 
   const renderVessels = useCallback(
     (vessels) => {
@@ -319,6 +322,64 @@ const AISMap = () => {
     [renderVessels, setVesselList]
   )
 
+  const loadTracked = useCallback(async () => {
+    if (!userId) return;
+    try {
+      const res = await vesselService.getTrackedVessels({ UserID: userId, PageSize: 1000, PageIndex: 0 });
+      const arrays = Object.values(res || {}).filter(Array.isArray);
+      const list = arrays.find(arr => arr.length && (arr[0].MMSI || arr[0].VesselName || arr[0].id)) || [];
+      const next = list.map(v => tranformApiData(v));
+      setTracked(next);                 // <- cập nhật state
+      // trackedRef sẽ tự cập nhật nhờ useEffect ở trên
+    } catch (e) {
+      console.error(e);
+      setTracked([]);
+    }
+  }, [userId, setTracked]);
+
+  const handleAddTracked = useCallback(async (mmsi, shipInfo) => {
+    if (!userId || !mmsi) return;
+
+    if ((trackedRef.current || []).some(t => String(t.MMSI) === String(mmsi))) {
+      toast.info("Tàu này đã có trong danh sách theo dõi");
+      return;
+    }
+
+    try {
+      await vesselService.addTrackedVessel({ MMSI: Number(mmsi), UserID: userId });
+
+      if (shipInfo) {
+        const newItem = tranformApiData(shipInfo);
+        setTracked(prev =>
+          prev.some(t => String(t.MMSI) === String(mmsi)) ? prev : [...prev, newItem]
+        );
+      }
+      await loadTracked();
+      toast.success("Thêm tàu vào danh sách theo dõi thành công");
+    } catch (err) {
+      console.error("Error adding tracked vessel:", err);
+      toast.error("Thêm tàu thất bại");
+    }
+  }, [userId, loadTracked]);
+
+  const handleDeleteTracked = useCallback(async (mmsi) => {
+    if (!userId || !mmsi) {
+      toast.error("Không tìm thấy mmsi để xóa")
+      return
+    }
+    try {
+      const payload = {
+        UserID: String(userId),
+        MMSI: String(mmsi)
+      }
+      await vesselService.deleteTrackedVessel(payload)
+      await loadTracked()
+      toast.success("Xóa tàu khỏi danh sách theo dõi thành công")
+    } catch (err) {
+      console.error("Error deleting tracked vessel:", err)
+      toast.error("Xóa tàu thất bại")
+    }
+  }, [userId, loadTracked]);
 
   useEffect(() => {
     // handle drawing interaction
@@ -368,6 +429,37 @@ const AISMap = () => {
             <br />
             {"(" + (ship.DateTimeUTC ? timeAgo(ship.DateTimeUTC) : "N/A") + ")"}
           </p>
+          { (tracked.some(t => String(t.MMSI) === String(ship.MMSI))) ? (
+            <Button
+              color="danger"
+              size="sm"
+              onClick={async () => {
+                const m = ship.MMSI
+                await handleDeleteTracked(m)
+              }}
+            >
+              Xoá khỏi danh sách tàu theo dõi
+            </Button>
+          ) : (
+            <Button
+              color="primary"
+              size="sm"
+              onClick={async () => {
+                const m = ship.MMSI
+                if (!m) {
+                  window.alert('Không tìm thấy MMSI để thêm')
+                  return
+                }
+                if ((trackedRef.current || []).some(t => String(t.MMSI) === String(m))) {
+                  toast.info('Tàu này đã có trong danh sách theo dõi')
+                  return
+                }
+                await handleAddTracked(m, ship)
+              }}
+            >
+              Thêm vào danh sách tàu theo dõi
+            </Button>
+          )}
           <p><b>Theo dõi hành trình:</b></p>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
             {[6, 12, 24, 48, 168, 360].map((h) => (
@@ -597,7 +689,7 @@ const AISMap = () => {
       map.setTarget(undefined)
       try { contextRootRef.current?.unmount(); } catch {}
     }
-  }, [vectorSource, trackSource, mapType, getVesselList])
+  }, [tracked, vectorSource, trackSource, mapType, getVesselList])
 
   useEffect(() => {
     localStorage.setItem("mapType", mapType)

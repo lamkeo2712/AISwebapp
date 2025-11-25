@@ -44,7 +44,7 @@ const HistoryVessel = ({ onAction1 = noop, onAction2 = noop, onAction3 = noop })
           <i className="ri-arrow-down-s-line align-middle"></i>
         </DropdownToggle>
 
-        <DropdownMenu className="dropdown-menu-lg p-0 dropdown-menu-end" style={{ width: "200px" }}>
+        <DropdownMenu className="dropdown-menu-lg p-0 dropdown-menu-end" style={{ width: "300px" }}>
           <div className="p-3 border-top-0 border-start-0 border-end-0 border bg-primary text-white">
             <Row className="align-items-start">
                 {/* 3 nút trống xếp dọc */}
@@ -70,7 +70,7 @@ const HistoryVessel = ({ onAction1 = noop, onAction2 = noop, onAction3 = noop })
                     aria-label="Action 2"
                     title="Action 2"
                   >
-                    <i className="ri-time-line me-1"></i> Tra cứu hành trình một tàu
+                    <i className="ri-time-line me-1"></i> Quản lý tàu theo dõi
                   </Button>
                   <Button
                     color="light"
@@ -80,7 +80,7 @@ const HistoryVessel = ({ onAction1 = noop, onAction2 = noop, onAction3 = noop })
                     aria-label="Action 3"
                     title="Action 3"
                   >
-                    <i className="ri-time-line me-1"></i> Tra cứu vị trí tàu
+                    <i className="ri-time-line me-1"></i> update sau
 
                   </Button>
                 </div>
