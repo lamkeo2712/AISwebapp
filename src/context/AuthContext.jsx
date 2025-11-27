@@ -165,6 +165,44 @@ export const AuthProvider = ({ children }) => {
     return () => window.removeEventListener('trigger-zone-toasts', handler)
   }, [state.isAuthenticated, state.user])
 
+  const countRef = useRef(100); // Initialize Count to 100
+
+  useEffect(() => {
+    const fetchVesselMovements = async () => {
+      try {
+        const userId = state.user?.id || state.user?.UserID;
+        if (!userId) return;
+
+        const zonesResponse = await zoneService.searchZones({ UserID: userId, PageSize: 100, PageIndex: 0 }, String(userId));
+        const zones = Object.values(zonesResponse || {}).flat().filter(zone => zone.Polygon);
+
+        let totalCount = 0;
+        for (const zone of zones) {
+          const params = { Polygon: zone.Polygon };
+          const vesselsResponse = await vesselService.searchVesselsInPolygon(params);
+          totalCount += vesselsResponse?.Count || 0;
+        }
+
+        const previousCount = countRef.current;
+        const entered = totalCount > previousCount ? totalCount - previousCount : 0;
+        const exited = totalCount < previousCount ? previousCount - totalCount : 0;
+
+        countRef.current = totalCount;
+
+        toast.info(
+          `Tàu vào: ${entered}, Tàu ra: ${exited}`,
+          { autoClose: 5000 }
+        );
+      } catch (error) {
+        console.error("Error fetching vessel movements:", error);
+      }
+    };
+
+    const intervalId = setInterval(fetchVesselMovements, 3 * 60 * 1000);
+
+    return () => clearInterval(intervalId);
+  }, [state.user])
+
   if (isLoading) {
     return <Spinners />
   }
