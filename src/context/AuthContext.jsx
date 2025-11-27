@@ -165,7 +165,7 @@ export const AuthProvider = ({ children }) => {
     return () => window.removeEventListener('trigger-zone-toasts', handler)
   }, [state.isAuthenticated, state.user])
 
-  const countRef = useRef(100); // Initialize Count to 100
+  const countRef = useRef(0);
 
   useEffect(() => {
     const fetchVesselMovements = async () => {
@@ -176,7 +176,7 @@ export const AuthProvider = ({ children }) => {
         const zonesResponse = await zoneService.searchZones({ UserID: userId, PageSize: 100, PageIndex: 0 }, String(userId));
         const zones = Object.values(zonesResponse || {}).flat().filter(zone => zone.Polygon);
 
-        let totalCount = 0;
+        let totalCount = 100;
         for (const zone of zones) {
           const params = { Polygon: zone.Polygon };
           const vesselsResponse = await vesselService.searchVesselsInPolygon(params);
@@ -185,7 +185,7 @@ export const AuthProvider = ({ children }) => {
 
         const previousCount = countRef.current;
         const entered = totalCount > previousCount ? totalCount - previousCount : 0;
-        const exited = totalCount < previousCount ? previousCount - totalCount : 0;
+        const exited = totalCount < previousCount ? totalCount - previousCount : 0;
 
         countRef.current = totalCount;
 
