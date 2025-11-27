@@ -18,6 +18,7 @@
     "@hookform/resolvers": "^3.3.4",
     "@tanstack/match-sorter-utils": "^8.15.1",
     "@tanstack/react-table": "^8.21.2",
+  "antd": "^5.9.0",
     "axios": "^1.6.8",
     "bootstrap": "^5.3.3",
     "chroma-js": "^3.0.0",
