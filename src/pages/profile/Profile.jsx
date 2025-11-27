@@ -25,6 +25,8 @@ const Profile = () => {
   document.title = "Thông tin cá nhân | MyAIS"
   const { user, dispatch } = useAuth()
   const [activeTab, setActiveTab] = useState("1")
+  const planType = user?.planType ?? user?.PlanType ?? "Free"
+  const [isUpgrading, setIsUpgrading] = useState(false)
 
   const tabChange = (tab) => {
     if (activeTab !== tab) setActiveTab(tab)
@@ -44,11 +46,49 @@ const Profile = () => {
     }
   }
 
+  const handleUpgradeToPro = async () => {
+    try {
+      setIsUpgrading(true)
+      const res = await userService.upgradeMyPlanToPro(1)
+      toast.success("Đã gửi yêu cầu nâng cấp Pro. Nếu chưa thấy hiệu lực, vui lòng đăng nhập lại.")
+    } catch (err) {
+      console.error(err)
+      toast.error("Nâng cấp Pro thất bại, vui lòng thử lại.")
+    } finally {
+      setIsUpgrading(false)
+    }
+  }
+
   return (
     <React.Fragment>
       <div className="page-content" style={{marginTop: '100px'}}>
         <Container fluid>
           <BreadCrumb title="Thông tin cá nhân" pageTitle="Trang chủ" />
+          <Row className="mb-3">
+            <Col md={6}>
+              <Card>
+                <CardBody className="d-flex justify-content-between align-items-center">
+                  <div>
+                    <h5 className="mb-1">Gói hiện tại</h5>
+                    <p className="mb-0">
+                      <b>{planType === "Pro" ? "Pro" : "Free"}</b>
+                    </p>
+                  </div>
+                  {planType === "Free" ? (
+                    <button
+                      className="btn btn-primary"
+                      onClick={handleUpgradeToPro}
+                      disabled={isUpgrading}
+                    >
+                      {isUpgrading ? "Đang nâng cấp..." : "Nâng cấp lên Pro"}
+                    </button>
+                  ) : (
+                    <span className="badge bg-success">Tài khoản Pro</span>
+                  )}
+                </CardBody>
+              </Card>
+            </Col>
+          </Row>
           <Row>
             <Col>
               <Card>

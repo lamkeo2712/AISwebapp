@@ -175,7 +175,94 @@ const createPathFeatures = (points, vessel) => {
   return [lineFeature, ...pointFeatures, startFeature].filter(Boolean)
 }
 
+const TrackPopup = ({
+  ship,
+  tracked,
+  planType,
+  onAddTracked,
+  onDeleteTracked,
+  onTrack,
+}) => {
+  if (!ship) return null
 
+  const lastTime = ship.DateTimeUTC ? new Date(ship.DateTimeUTC).toLocaleString("vi-VN") : "N/A"
+  const isTracked = (tracked || []).some(t => String(t.MMSI) === String(ship.MMSI))
+
+  return (
+    <Card style={{ boxShadow: "0 4px 12px rgba(0,0,0,0.15)", borderRadius: 8 }}>
+      <div style={{ padding: "8px 12px", borderBottom: "1px solid #f0f0f0", fontWeight: 600 }}>
+        {String(ship.VesselName ?? ship.MMSI ?? "").toUpperCase()}
+      </div>
+      <div style={{ padding: "8px 12px", fontSize: 12 }}>
+        <p><b>MMSI:</b> {ship.MMSI ?? ""}</p>
+        <p><b>Tốc độ:</b> {ship.SpeedOverGround ?? 0} knots</p>
+        <p><b>Hướng:</b> {ship.CourseOverGround ?? 0}°</p>
+        <p><b>Vị trí:</b> {toDMS(ship.Latitude, ship.Longitude)}</p>
+        <p>
+          <b>Thời gian:</b> {lastTime}
+          <br />
+          {"(" + (ship.DateTimeUTC ? timeAgo(ship.DateTimeUTC) : "N/A") + ")"}
+        </p>
+
+        {/* Nút theo dõi / bỏ theo dõi */}
+        {isTracked ? (
+          <Button
+            color="danger"
+            size="sm"
+            onClick={async () => {
+              const m = ship.MMSI
+              await onDeleteTracked(m)
+            }}
+          >
+            Xoá khỏi danh sách tàu theo dõi
+          </Button>
+        ) : planType === "Pro" ? (
+          <Button
+            color="primary"
+            size="sm"
+            onClick={async () => {
+              const m = ship.MMSI
+              if (!m) {
+                window.alert("Không tìm thấy MMSI để thêm")
+                return
+              }
+              await onAddTracked(m, ship)
+            }}
+          >
+            Thêm vào danh sách tàu theo dõi
+          </Button>
+        ) : (
+          <Button size="sm" color="secondary" disabled>
+            Thêm vào danh sách tàu theo dõi (gói Pro)
+          </Button>
+        )}
+
+        <br />
+        <br />
+        <p><b>Theo dõi hành trình:</b></p>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+          {[6, 12, 24, 48, 168, 360].map((h) => (
+            <Button
+              key={h}
+              size="sm"
+              color="primary"
+              onClick={() => onTrack(h, ship)}
+            >
+              {h === 168 ? "7d" : h === 360 ? "15d" : `${h}h`}
+            </Button>
+          ))}
+          <Button
+            size="sm"
+            color="danger"
+            onClick={() => onTrack(0, ship)}
+          >
+            <DeleteOutlined />
+          </Button>
+        </div>
+      </div>
+    </Card>
+  )
+}
 
 const AISMap = () => {
   document.title = "Bản đồ tàu thuyền"
@@ -194,6 +281,7 @@ const AISMap = () => {
   const { user } = useAuth()
   // derive numeric user ID (supports different naming conventions)
   const userId = user?.id ?? user?.ID ?? user?.UserID ?? user?.userId
+  const planType = user?.planType ?? user?.PlanType ?? "Free"
 
   const loadZones = useCallback(async () => {
     try {
@@ -401,78 +489,12 @@ const AISMap = () => {
       if (draw) mapInstance.current.removeInteraction(draw)
     }
   }, [isDrawingZone])
-
-    // re-render vessels when list changes
-    useEffect(() => {
-      renderVessels(vesselList)
-    }, [vesselList, renderVessels])
-  // re-render vessels when list changes
   useEffect(() => {
     renderVessels(vesselList)
   }, [vesselList, renderVessels])
-
-  const createTrackForm = (ship) => {
-    const lastTime = ship.DateTimeUTC ? new Date(ship.DateTimeUTC).toLocaleString("vi-VN") : "N/A";
-  
-    return (
-      <Card style={{ boxShadow: "0 4px 12px rgba(0,0,0,0.15)", borderRadius: 8 }}>
-        <div style={{ padding: "8px 12px", borderBottom: "1px solid #f0f0f0", fontWeight: 600 }}>
-          {String(ship.VesselName ?? ship.MMSI ?? "").toUpperCase()}
-        </div>
-        <div style={{ padding: "8px 12px", fontSize: 12 }}>
-          <p><b>MMSI:</b> {ship.MMSI ?? ""}</p>
-          <p><b>Tốc độ:</b> {ship.SpeedOverGround ?? 0} knots</p>
-          <p><b>Hướng:</b> {ship.CourseOverGround ?? 0}°</p>
-          <p><b>Vị trí:</b> {toDMS(ship.Latitude, ship.Longitude)}</p>
-          <p>
-            <b>Thời gian:</b> {lastTime}
-            <br />
-            {"(" + (ship.DateTimeUTC ? timeAgo(ship.DateTimeUTC) : "N/A") + ")"}
-          </p>
-          { (tracked.some(t => String(t.MMSI) === String(ship.MMSI))) ? (
-            <Button
-              color="danger"
-              size="sm"
-              onClick={async () => {
-                const m = ship.MMSI
-                await handleDeleteTracked(m)
-              }}
-            >
-              Xoá khỏi danh sách tàu theo dõi
-            </Button>
-          ) : (
-            <Button
-              color="primary"
-              size="sm"
-              onClick={async () => {
-                const m = ship.MMSI
-                if (!m) {
-                  window.alert('Không tìm thấy MMSI để thêm')
-                  return
-                }
-                if ((trackedRef.current || []).some(t => String(t.MMSI) === String(m))) {
-                  toast.info('Tàu này đã có trong danh sách theo dõi')
-                  return
-                }
-                await handleAddTracked(m, ship)
-              }}
-            >
-              Thêm vào danh sách tàu theo dõi
-            </Button>
-          )}
-          <p><b>Theo dõi hành trình:</b></p>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-            {[6, 12, 24, 48, 168, 360].map((h) => (
-              <Button key={h} size="sm" color="primary" onClick={() => handleTrackButtonClick(h, ship)}>
-                {h === 168 ? "7d" : h === 360 ? "15d" : `${h}h`}
-              </Button>
-            ))}
-            <Button size="sm" color="danger" onClick={() => handleTrackButtonClick(0, ship)}><DeleteOutlined /></Button>
-          </div>
-        </div>
-      </Card>
-    );
-  };
+  useEffect(() => {
+    renderVessels(vesselList)
+  }, [vesselList, renderVessels])
   
 
   const getVesselRoute = async (vessel, isAnimate = true, hours = 24) => {
@@ -622,17 +644,15 @@ const AISMap = () => {
         event.pixel,
         (f) => (f.get("type") === "vessel" ? f : undefined),
         { hitTolerance: 5 }
-      );
+      )
       if (feat) {
-        const v = tranformApiData(feat.get("data"));
-        setSelectedVessel(v);
-        contextRootRef.current?.render(createTrackForm(v));
-        contextOverlayRef.current?.setPosition(event.coordinate);
-      
+        const v = tranformApiData(feat.get("data"))
+        setSelectedVessel(v)
+        setClickPosition(event.coordinate)   // chỉ lưu coord, render để useEffect lo
       } else {
-        setSelectedVessel(null);
-        setClickPosition(null);
-        contextOverlayRef.current?.setPosition(undefined);
+        setSelectedVessel(null)
+        setClickPosition(null)
+        contextOverlayRef.current?.setPosition(undefined)
       }
     })
 
@@ -650,7 +670,7 @@ const AISMap = () => {
         popupElement.innerHTML = `
           <div>
             <strong>Tàu:</strong> ${d.vesselName ?? "N/A"}<br/>
-            <strong>Thời gian:</strong> ${d.datetimeutc ? new Date(d.datetimeutc).toLocaleString("vi-VN") : "N/A"}<br/>
+            <strong>Thời gian:</strong> ${d.datetimeutc ? new Date(d.datetimeutc.slice(0, 19)).toLocaleString("vi-VN") : "N/A"}<br/>
             <strong>Vị trí:</strong> ${toDMS(d.latitude, d.longitude)}<br/>
             <strong>Hướng:</strong> ${Number.isFinite(d.cog) ? d.cog + "°" : "N/A"}<br/>
             <strong>Tốc độ:</strong> ${Number.isFinite(d.sog) ? d.sog + " knots" : "N/A"}
@@ -689,7 +709,40 @@ const AISMap = () => {
       map.setTarget(undefined)
       try { contextRootRef.current?.unmount(); } catch {}
     }
-  }, [tracked, vectorSource, trackSource, mapType, getVesselList])
+  }, [ vectorSource, trackSource, mapType, getVesselList])
+
+  useEffect(() => {
+    if (!contextRootRef.current) return
+
+    if (!selectedVessel) {
+      contextRootRef.current.render(null)
+      contextOverlayRef.current?.setPosition(undefined)
+      return
+    }
+
+    contextRootRef.current.render(
+      <TrackPopup
+        ship={selectedVessel}
+        tracked={tracked}
+        planType={planType}
+        onAddTracked={handleAddTracked}
+        onDeleteTracked={handleDeleteTracked}
+        onTrack={handleTrackButtonClick}
+      />
+    )
+
+    if (clickPosition) {
+      contextOverlayRef.current?.setPosition(clickPosition)
+    }
+  }, [
+    selectedVessel,
+    tracked,
+    planType,
+    handleAddTracked,
+    handleDeleteTracked,
+    handleTrackButtonClick,
+    clickPosition,
+  ])
 
   useEffect(() => {
     localStorage.setItem("mapType", mapType)

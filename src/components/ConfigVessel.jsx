@@ -3,11 +3,18 @@ import { Button, Col, Dropdown, DropdownMenu, DropdownToggle, Input, Label, Row 
 import { genSvgColorUrl } from "../helpers/common-helper"
 import useAisStore from "../store/useAisStore"
 import { vesselService } from "../services/vessel-service"
+import { useAuth } from "../hooks/useAuth"
 
 const ConfigVessel = () => {
   const [isConfigVesselDropdown, setIsConfigVesselDropdown] = useState(false)
   const [danhSach, setDanhSach] = useState("tatCa")
   const [thietBi, setThietBi] = useState(["classA", "classB", "aToN", "baseStation"])
+  const { user } = useAuth()
+  const userId =
+    user?.id ??
+    user?.Id ??
+    user?.userId ??
+    user?.UserID ?? ""
   const loaiTauLOV = useAisStore((state) => state.loaiTauLOV)
   const setLoaiTauLOV = useAisStore((state) => state.setLoaiTauLOV)
   const [loaiTau, setLoaiTau] = useState(loaiTauLOV.map((item) => item.id) || [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,38,39,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,40,41,42,43,44,45,46,47,48,49,50,51,52,53,54,55,56,57,58,59,60,61,62,63,64,65,66,67,68,69,70,71,72,73,74,75,76,77,78,79,80,81,82,83,84,85,86,87,88,89,90,91,92,93,94,95,96,97,98,99,100])
@@ -90,14 +97,25 @@ const ConfigVessel = () => {
   }, [thamSoTau, getVesselList])
 
   const handleApply = () => {
-    useAisStore.setState((state) => ({
+    const aidType = thietBi.includes("aToN") ? 2 : 0
+
+    const msgChannel = []
+    if (thietBi.includes("classA")) msgChannel.push("A")
+    if (thietBi.includes("classB")) msgChannel.push("B")
+
+      
+    const userIdValue = danhSach === "danhSachTheoDoi" ? userId : ""
+
+    useAisStore.setState(() => ({
       thamSoTau: {
-        "ShipType": loaiTau
-      }
+        ShipType: loaiTau,
+        AidType: aidType,
+        MsgChannel: msgChannel,
+        UserID: userIdValue,
+      },
     }))
-    // getVesselList({
-    //   "ShipType": loaiTau
-    // })
+
+    setIsConfigVesselDropdown(false)
   }
 
   const renderLoaiTauCheckbox = (id, label, color = "#0f0") => (
@@ -211,18 +229,6 @@ const ConfigVessel = () => {
                       />
                       <Label className="form-check-label" htmlFor={"aToN"}>
                         AtoN
-                      </Label>
-                    </div>
-                    <div className="form-check form-check-info mb-3">
-                      <Input
-                        className="form-check-input"
-                        type="checkbox"
-                        id={"baseStation"}
-                        checked={thietBi.includes("baseStation")}
-                        onChange={() => handleThietBiChange("baseStation")}
-                      />
-                      <Label className="form-check-label" htmlFor={"baseStation"}>
-                        Base station
                       </Label>
                     </div>
                   </Col>

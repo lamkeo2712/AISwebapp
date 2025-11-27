@@ -17,6 +17,10 @@ class UserService {
   getUserInfo = async () => {
     return await apiHelper.get("/api/Authen/GetUser")
   }
+  
+  upgradeMyPlanToPro = async (months = 1) => {
+    return await apiHelper.post("/api/Authen/UpgradeToPro", months)
+  }
 
   updatePwd = async (data) => {
     await apiHelper.post(`/api/user/profile/updatePwd`, data)

@@ -4,6 +4,7 @@ import useAisStore from "../store/useAisStore"
 import { vesselService } from "../services/vessel-service"
 import ZoneManager from "./ZoneManager"
 import TrackVesselModal from "./TrackVesselModal"
+import { useAuth } from "../hooks/useAuth"
 
 const noop = () => {}
 
@@ -13,6 +14,9 @@ const HistoryVessel = ({ onAction1 = noop, onAction2 = noop, onAction3 = noop })
   const [showTrackModal, setShowTrackModal] = useState(false)
   const setVesselList = useAisStore((state) => state.setVesselList)
   const thamSoTau = useAisStore((state) => state.thamSoTau)
+  const { user } = useAuth()
+  const userId = user?.id ?? user?.ID ?? user?.UserID ?? user?.userId
+  const planType = user?.planType ?? user?.PlanType ?? "Free"
 
   const toggleHistoryVesselDropdown = () => {
     setIsHistoryVesselDropdown(!isHistoryVesselDropdown)
@@ -47,8 +51,9 @@ const HistoryVessel = ({ onAction1 = noop, onAction2 = noop, onAction3 = noop })
         <DropdownMenu className="dropdown-menu-lg p-0 dropdown-menu-end" style={{ width: "300px" }}>
           <div className="p-3 border-top-0 border-start-0 border-end-0 border bg-primary text-white">
             <Row className="align-items-start">
-                {/* 3 nút trống xếp dọc */}
                 <div className="d-flex flex-column">
+                  {planType === "Pro" ? (
+                  <>
                   <Button
                     color="light"
                     className="w-100 mb-2"
@@ -83,6 +88,43 @@ const HistoryVessel = ({ onAction1 = noop, onAction2 = noop, onAction3 = noop })
                     <i className="ri-time-line me-1"></i> update sau
 
                   </Button>
+                  </>
+                  ) : (
+                  <>
+                  <Button
+                    color="light"
+                    className="w-100 mb-2"
+                    style={{ height: 40 }}
+                    aria-label="Action 1"
+                    title="Action 1"
+                    disabled
+                  >
+                    <i className="ri-time-line me-1"></i> Quản lý vùng (gói Pro)
+                  </Button>
+                  <Button
+                    color="light"
+                    className="w-100 mb-2"
+                    style={{ height: 40 }}
+                    aria-label="Action 2"
+                    title="Action 2"
+                    disabled
+                  >
+                    <i className="ri-time-line me-1"></i> Quản lý tàu theo dõi (gói Pro)
+                  </Button>
+                  <Button
+                    color="light"
+                    className="w-100"
+                    style={{ height: 40 }}
+                    aria-label="Action 3"
+                    title="Action 3"
+                    disabled
+                  >
+                    <i className="ri-time-line me-1"></i> update sau (gói Pro)
+
+                  </Button>
+                  </>
+
+                  )}
                 </div>
             </Row>
           </div>
