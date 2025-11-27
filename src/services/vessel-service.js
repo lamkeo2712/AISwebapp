@@ -20,6 +20,15 @@ class VesselService {
     })
   }
 
+  // Search vessels inside a polygon (calls Proc_DM_Tau_Polygon_Search)
+  searchVesselsInPolygon = async (thamSo) => {
+    // Backend exposes a dedicated endpoint for polygon search
+    // It expects { thamSo: JSON.stringify({...}) }
+    return await apiHelper.post("/api/Ship/Data/GetTauInPolygon", {
+      thamSo: JSON.stringify(thamSo)
+    })
+  }
+
   addTrackedVessel = async (thamSo) => {
     return await apiHelper.post("/api/Ship/Data/UpdateTauTD", {
       thamSo: JSON.stringify(thamSo)

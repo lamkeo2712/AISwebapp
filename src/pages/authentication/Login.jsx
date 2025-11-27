@@ -12,6 +12,8 @@ import { toast } from "react-toastify"
 import logoLight from "../../assets/images/logo-light.png"
 import { init } from "../../context/AuthContext"
 import { setAccessToken, setRefreshToken } from "../../helpers/tokenHelper"
+import { zoneService } from "../../services/zone-service"
+import { vesselService } from "../../services/vessel-service"
 import { useAuth } from "../../hooks/useAuth"
 import { userService } from "../../services/user-service"
 
@@ -66,6 +68,7 @@ const Login = () => {
       const userResponse = await userService.getUserInfo()
       dispatch(init({ isAuthenticated: true, user: userResponse }))
 
+      
       // xử lý đưa về trang trước đó
       let from = "/"
       if (location.state?.from?.pathname) {
@@ -76,6 +79,12 @@ const Login = () => {
         }
       }
       navigate(from)
+      // trigger zone toasts explicitly after navigation so user sees them when coming from login
+      try {
+        window.dispatchEvent(new CustomEvent('trigger-zone-toasts'))
+      } catch (e) {
+        console.error('Could not dispatch trigger-zone-toasts event', e)
+      }
     } catch (error) {
       toast.error("Tên đăng nhập hoặc mật khẩu không đúng")
       console.log(error.message)
