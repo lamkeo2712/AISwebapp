@@ -7,6 +7,7 @@ import LineString from "ol/geom/LineString"
 import Point from "ol/geom/Point"
 import TileLayer from "ol/layer/Tile"
 import VectorLayer from "ol/layer/Vector"
+import Heatmap from "ol/layer/Heatmap"
 import "ol/ol.css"
 import { fromLonLat, Projection } from "ol/proj"
 import { XYZ } from "ol/source"
@@ -354,12 +355,15 @@ const AISMap = () => {
 
   const vectorSource = useMemo(() => new VectorSource(), [])
   const trackSource = useMemo(() => new VectorSource(), []) // ★ CHANGED: nguồn tuyến riêng
+  const heatmapSource = useMemo(() => new VectorSource(), [])
   const isDrawingZone = useAisStore(s => s.isDrawingZone)
   const startDrawingZone = useAisStore(s => s.startDrawingZone)
   const stopDrawingZone = useAisStore(s => s.stopDrawingZone)
   const setPolygonCoords = useAisStore(s => s.setPolygonCoords)
 
   const shipsLayerRef = useRef(null) // để thay đổi base layer URL
+  const vesselsLayerRef = useRef(null) // layer icon tàu
+  const heatmapLayerRef = useRef(null) 
   const contextOverlayRef = useRef(null);
   const contextRootRef = useRef(null);
   const contextElRef = useRef(null);
@@ -374,9 +378,25 @@ const AISMap = () => {
         .filter((feature) => ["vessel"].includes(feature.get("type")))
         .forEach((feature) => vectorSource.removeFeature(feature))
 
+      heatmapSource.clear()
+
       vessels.forEach((vessel) => {
-        const vesselFeature = createVesselFeature(tranformApiData(vessel))
+        const data = tranformApiData(vessel)
+        const vesselFeature = createVesselFeature(data)
         if (vesselFeature) vectorSource.addFeature(vesselFeature)
+
+        const lat = Number(data.Latitude)
+        const lon = Number(data.Longitude)
+        if (Number.isFinite(lat) && Number.isFinite(lon) && !(lat === 0 && lon === 0)) {
+        const f = new Feature({
+        geometry: new Point(fromLonLat([lon, lat])),
+        })
+        // const sog = Number(data.SpeedOverGround)
+        // if (Number.isFinite(sog)) {
+        // f.set("weight", Math.min(1, sog / 20)) // 20 knots = full đỏ
+        // }
+        heatmapSource.addFeature(f)
+        }
       })
     },
     [vectorSource]
@@ -563,6 +583,22 @@ const AISMap = () => {
     })
     shipsLayerRef.current = baseLayer
 
+    const vesselsLayer = new VectorLayer({
+      source: vectorSource,
+      zIndex: 10,
+      })
+    vesselsLayerRef.current = vesselsLayer
+
+    const heatmapLayer = new Heatmap({
+      source: heatmapSource,
+      blur: 50,
+      opacity: 0.8,
+      radius: 10,
+      visible: false, // mặc định ẩn, chỉ hiện khi zoom xa
+      zIndex: 20
+    })
+    heatmapLayerRef.current = heatmapLayer
+
     const trackLayer = new VectorLayer({
       source: trackSource,
       style: new Style({ stroke: new Stroke({ color: "#1890ff", width: 3, lineDash: [5, 5] }) }),
@@ -587,11 +623,33 @@ const AISMap = () => {
           showLabels: true,
           wrapX: true
         }),
-        new VectorLayer({ source: vectorSource, zIndex: 10 }),
+        vesselsLayer,
+        heatmapLayer,
         trackLayer // để dành nếu bạn muốn tách route riêng; hiện tại route đang add vào vectorSource
       ],
-      view: new View({ center: fromLonLat(INITIAL_CENTER), zoom: INITIAL_ZOOM })
+      view: new View({ center: fromLonLat(INITIAL_CENTER), zoom: INITIAL_ZOOM, minZoom: 6 })
     })
+
+    const view = map.getView()
+    const HEATMAP_ZOOM_THRESHOLD = 8 // tuỳ em, số nhỏ hơn = xa hơn
+
+    const updateLayersForZoom = () => {
+      const z = view.getZoom()
+      const showHeat = z <= HEATMAP_ZOOM_THRESHOLD
+      if (heatmapLayerRef.current) {
+        heatmapLayerRef.current.setVisible(showHeat)
+      }
+      // Ẩn icon tàu khi zoom xa (hiện heatmap)
+      if (vesselsLayerRef.current) {
+        vesselsLayerRef.current.setVisible(!showHeat)
+      }
+    }
+
+    // chạy lần đầu
+    updateLayersForZoom()
+
+    // đăng ký listener zoom
+    view.on("change:resolution", updateLayersForZoom)
 
     map.addControl(new ScaleLine())
     map.addControl(new Zoom())
@@ -706,10 +764,14 @@ const AISMap = () => {
 
     return () => {
       clearInterval(intervalId)
+      try {
+        const view = map.getView()
+        view && view.un("change:resolution", updateLayersForZoom)
+      } catch {}
       map.setTarget(undefined)
       try { contextRootRef.current?.unmount(); } catch {}
     }
-  }, [ vectorSource, trackSource, mapType, getVesselList])
+  }, [ vectorSource, trackSource, mapType, getVesselList, heatmapSource])
 
   useEffect(() => {
     if (!contextRootRef.current) return
@@ -752,6 +814,8 @@ const AISMap = () => {
       if (src?.setUrl) src.setUrl(getMapUrl(mapType))
     }
   }, [mapType])
+
+
 
   return (
     <React.Fragment>
