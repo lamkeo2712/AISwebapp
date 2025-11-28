@@ -135,7 +135,7 @@ export const AuthProvider = ({ children }) => {
           toast.info('Không có tàu trong các vùng cảnh báo hiện tại', { autoClose: 5000 })
         } else {
           // Summary toast
-          toast.info(`Có ${totalShips} tàu đang có trong ${zonesWithShips.length} vùng cảnh báo`, { autoClose: 6000 })
+          //toast.info(`Có ${totalShips} tàu đang có trong ${zonesWithShips.length} vùng cảnh báo`, { autoClose: 6000 })
           // Also show per-zone toasts for up to 3 zones to avoid flooding
           zonesWithShips.slice(0, 3).forEach(({ zone: z, list }) => {
             const zoneName = z.TenVung || z.name || ''

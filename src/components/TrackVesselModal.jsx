@@ -133,7 +133,7 @@ const TrackVesselModal = ({ isOpen, onClose }) => {
 
   const handleGoTo = (v) => {
     const vessel = tranformApiData(v)
-    setSelectedVessel(vessel)
+    onClose()
     // also dispatch an event to let map center if needed
     window.dispatchEvent(new CustomEvent("goto-vessel", { detail: vessel }))
   }

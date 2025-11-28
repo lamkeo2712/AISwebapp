@@ -29,9 +29,6 @@ import { DeleteOutlined, SettingOutlined } from '@ant-design/icons';
 
 import { tranformApiData } from "../../helpers/common-helper"
 import useAisStore from "../../store/useAisStore"
-import hoangSa from "./data/HoangSa.json"
-import offshore from "./data/Offshore.json"
-import truongSa from "./data/TruongSa.json"
 
 const INITIAL_CENTER = [106.6297, 10.8231]
 const INITIAL_ZOOM = 7
@@ -98,12 +95,12 @@ const createVesselFeature = (vessel, isRoute = false) => {
     data: vessel
   })
 
-  const svgSize = vessel.AidTypeID ? 12 : 24
+  const svgSize = vessel.AidTypeID != 0 && vessel.AidTypeID != null ? 12 : 24
   const cog = Number(vessel.CourseOverGround)
   const rotation =
-    vessel.AidTypeID ? 45 * (Math.PI / 180) : (Number.isFinite(cog) && cog !== 360 ? (cog * Math.PI) / 180 : 0)
+    vessel.AidTypeID != 0 && vessel.AidTypeID != null ? 45 * (Math.PI / 180) : (Number.isFinite(cog) && cog !== 360 ? (cog * Math.PI) / 180 : 0)
 
-  const svg = vessel.AidTypeID
+  const svg = vessel.AidTypeID != 0 && vessel.AidTypeID != null
     ? `
     <svg width="${svgSize}" height="${svgSize}" viewBox="0 0 ${svgSize} ${svgSize}" xmlns="http://www.w3.org/2000/svg">
       <rect width="${svgSize}" height="${svgSize}" stroke="red" fill="#f3e3e3" stroke-width="2"/>
@@ -196,8 +193,18 @@ const TrackPopup = ({
       </div>
       <div style={{ padding: "8px 12px", fontSize: 12 }}>
         <p><b>MMSI:</b> {ship.MMSI ?? ""}</p>
+        {ship.AidTypeID == 0 || ship.AidTypeID == null ? (
+        <>
+        <p><b>Loại tàu:</b> {ship.ShipType ?? 'N/A'}</p>
+        <p><b>Kích thước:</b> {ship.ShipLength ?? 'N/A'}x{ship.ShipWidth ?? 'N/A'} m</p>
         <p><b>Tốc độ:</b> {ship.SpeedOverGround ?? 0} knots</p>
         <p><b>Hướng:</b> {ship.CourseOverGround ?? 0}°</p>
+        </>
+        ) : (
+        <>
+        <p><b>Loại phao:</b> {ship.AidType}</p>
+        </>
+        )}
         <p><b>Vị trí:</b> {toDMS(ship.Latitude, ship.Longitude)}</p>
         <p>
           <b>Thời gian:</b> {lastTime}
@@ -205,7 +212,9 @@ const TrackPopup = ({
           {"(" + (ship.DateTimeUTC ? timeAgo(ship.DateTimeUTC) : "N/A") + ")"}
         </p>
 
-        {/* Nút theo dõi / bỏ theo dõi */}
+        {ship.AidTypeID == 0 || ship.AidTypeID == null ? (
+        <>
+        <p><b>Class:</b> {ship.MsgChannel}</p>
         {isTracked ? (
           <Button
             color="danger"
@@ -260,6 +269,8 @@ const TrackPopup = ({
             <DeleteOutlined />
           </Button>
         </div>
+        </>
+        ) : (<></>)}
       </div>
     </Card>
   )
@@ -272,6 +283,7 @@ const AISMap = () => {
   const mapInstance = useRef()
   const zonesSource = useMemo(() => new VectorSource(), [])
   const zonesLayerRef = useRef(null)
+  const mousePosControlRef = useRef(null)
   const [isLoading, setIsLoading] = useState(false)
   const [viewingRoute, setViewingRoute] = useState(null)
   const [clickPosition, setClickPosition] = useState(null)
@@ -338,7 +350,12 @@ const AISMap = () => {
         if (mapInstance.current && Number.isFinite(lon) && Number.isFinite(lat)) {
           const view = mapInstance.current.getView()
           const center = fromLonLat([lon, lat])
-          view.animate({ center, zoom: Math.max(view.getZoom ? view.getZoom() : 11, 11), duration: 800 })
+          view.animate(
+            { center, zoom: Math.max(view.getZoom ? view.getZoom() : 11, 14), duration: 800 },
+            () => {
+              setClickPosition(center)
+            }
+          )
         }
       } catch (err) {
         console.error('Error handling goto/track event', err)
@@ -351,7 +368,7 @@ const AISMap = () => {
       window.removeEventListener('goto-vessel', handler)
       window.removeEventListener('track-vessel', handler)
     }
-  }, [setSelectedVessel])
+  }, [setSelectedVessel, setClickPosition])
 
   const vectorSource = useMemo(() => new VectorSource(), [])
   const trackSource = useMemo(() => new VectorSource(), []) // ★ CHANGED: nguồn tuyến riêng
@@ -444,6 +461,10 @@ const AISMap = () => {
       setTracked([]);
     }
   }, [userId, setTracked]);
+
+  useEffect(() => {
+    loadTracked();
+  }, [userId, loadTracked])
 
   const handleAddTracked = useCallback(async (mmsi, shipInfo) => {
     if (!userId || !mmsi) return;
@@ -653,19 +674,20 @@ const AISMap = () => {
 
     map.addControl(new ScaleLine())
     map.addControl(new Zoom())
-    map.addControl(
-      new MousePosition({
-        coordinateFormat: (coord) => {
-          const lon = Number(coord[0].toFixed(4))
-          const lat = Number(coord[1].toFixed(4))
-          return toDMS(lat, lon)
-        },
-        projection: new Projection({ code: "EPSG:4326", units: "degrees", axisOrientation: "neu" }),
-        className: "custom-mouse-position",
-        target: document.getElementById('mouse-position'),
-        undefinedHTML: "&nbsp;"
-      })
-    )
+
+    const mousePosControl = new MousePosition({
+      coordinateFormat: (coord) => {
+        const lon = Number(coord[0].toFixed(4))
+        const lat = Number(coord[1].toFixed(4))
+        return toDMS(lat, lon)
+      },
+      projection: new Projection({ code: "EPSG:4326", units: "degrees", axisOrientation: "neu" }),
+      className: "custom-mouse-position",
+      target: document.getElementById("mouse-position"),
+      undefinedHTML: "&nbsp;"
+    })
+    map.addControl(mousePosControl)
+    mousePosControlRef.current = mousePosControl
 
     // overlay popup hover track point (dùng lại element đã làm)
     const popupElement = document.createElement("div")
@@ -748,9 +770,6 @@ const AISMap = () => {
       features.forEach((f) => f.setStyle(style))
       vectorSource.addFeatures(features)
     }
-    addFeatures(hoangSa, MAP_STYLES.boundary)
-    addFeatures(truongSa, MAP_STYLES.boundary)
-    addFeatures(offshore, MAP_STYLES.offshore)
     // add zone layer
     map.addLayer(zonesLayer)
 
@@ -764,6 +783,12 @@ const AISMap = () => {
 
     return () => {
       clearInterval(intervalId)
+      try {
+        if (mousePosControlRef.current && map) {
+          map.removeControl(mousePosControlRef.current)
+          mousePosControlRef.current = null
+        }
+      } catch {}
       try {
         const view = map.getView()
         view && view.un("change:resolution", updateLayersForZoom)

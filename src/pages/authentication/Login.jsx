@@ -174,11 +174,11 @@ const Login = () => {
                           {errors.password && (
                             <div className="invalid-feedback  d-inline-block">{errors.password.message}</div>
                           )}
-                          <div className="float-end">
+                          {/* <div className="float-end">
                             <Link to="/auth/forgot-password" className="text-muted">
                               Quên mật khẩu?
                             </Link>
-                          </div>
+                          </div> */}
                         </div>
 
                         <div className="form-check">
