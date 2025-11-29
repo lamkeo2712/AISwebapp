@@ -109,8 +109,6 @@ export const AuthProvider = ({ children }) => {
       const zArrays = Object.values(zRes || {}).filter((v) => Array.isArray(v))
       const zonesList = zArrays.find((arr) => arr.length > 0 && arr[0] && Object.prototype.hasOwnProperty.call(arr[0], 'TenVung')) || []
       if (zonesList.length === 0) {
-        // No zones configured for this user
-        toast.info('Bạn chưa có vùng cảnh báo nào', { autoClose: 5000 })
       } else {
         const fetchPromises = zonesList.map((z) => {
           if (!z.Polygon) return Promise.resolve({ zone: z, list: [] })
@@ -165,42 +163,87 @@ export const AuthProvider = ({ children }) => {
     return () => window.removeEventListener('trigger-zone-toasts', handler)
   }, [state.isAuthenticated, state.user])
 
-  const countRef = useRef(0);
+  const zoneCountsRef = useRef({})
 
   useEffect(() => {
     const fetchVesselMovements = async () => {
       try {
-        const userId = state.user?.id || state.user?.UserID;
-        if (!userId) return;
+        const userId =
+          state.user?.id ||
+          state.user?.ID ||
+          state.user?.UserID ||
+          state.user?.userId
+        if (!userId) return
 
-        const zonesResponse = await zoneService.searchZones({ UserID: userId, PageSize: 100, PageIndex: 0 }, String(userId));
-        const zones = Object.values(zonesResponse || {}).flat().filter(zone => zone.Polygon);
+        const zonesResponse = await zoneService.searchZones(
+          { UserID: userId, PageSize: 100, PageIndex: 0 },
+          String(userId)
+        )
 
-        let totalCount = 100;
+        const zones = Object.values(zonesResponse || {})
+          .flat()
+          .filter((zone) => zone && zone.Polygon)
+
+        if (!zones.length) return
+
+        const prevMap = zoneCountsRef.current || {}
+        const nextMap = {}
+        let totalEntered = 0
+        let totalExited = 0
+
         for (const zone of zones) {
-          const params = { Polygon: zone.Polygon };
-          const vesselsResponse = await vesselService.searchVesselsInPolygon(params);
-          totalCount += vesselsResponse?.Count || 0;
+          const zoneId =
+            zone.ID ||
+            zone.Id ||
+            zone.id ||
+            zone.TenVung ||
+            JSON.stringify(zone.Polygon)
+
+          const zoneName = zone.TenVung || zone.name || `Zone ${zoneId}`
+
+          const params = { Polygon: zone.Polygon }
+          const vesselsResponse = await vesselService.searchVesselsInPolygon(params)
+
+          const vArrays = Object.values(vesselsResponse || {}).filter(Array.isArray)
+          const vList =
+            vArrays.find(
+              (arr) =>
+                arr.length > 0 &&
+                (arr[0].MMSI || arr[0].VesselName || arr[0].TenTau)
+            ) || []
+
+          const newCount = vList.length
+          const oldCount = prevMap[zoneId] ?? 0
+
+          nextMap[zoneId] = newCount
+
+          const entered = newCount > oldCount ? newCount - oldCount : 0
+          const exited = newCount < oldCount ? oldCount - newCount : 0
+
+          if (entered > 0 || exited > 0) {
+            totalEntered += entered
+            totalExited += exited
+
+            toast.info(
+              `Vùng "${zoneName}": Tàu vào: ${entered}, Tàu ra: ${exited} (hiện có ${newCount} tàu)`,
+              { autoClose: 5000 }
+            )
+          }
         }
 
-        const previousCount = countRef.current;
-        const entered = totalCount > previousCount ? totalCount - previousCount : 0;
-        const exited = totalCount < previousCount ? totalCount - previousCount : 0;
+        zoneCountsRef.current = nextMap
 
-        countRef.current = totalCount;
-
-        toast.info(
-          `Tàu vào: ${entered}, Tàu ra: ${exited}`,
-          { autoClose: 5000 }
-        );
       } catch (error) {
-        console.error("Error fetching vessel movements:", error);
+        console.error("Error fetching vessel movements:", error)
       }
-    };
+    }
 
-    const intervalId = setInterval(fetchVesselMovements, 3 * 60 * 1000);
+    if (!state.user) return
 
-    return () => clearInterval(intervalId);
+    const intervalId = setInterval(fetchVesselMovements, 3 * 60 * 1000)
+    //const intervalId = setInterval(fetchVesselMovements, 10 * 1000) // để dev
+
+    return () => clearInterval(intervalId)
   }, [state.user])
 
   if (isLoading) {
