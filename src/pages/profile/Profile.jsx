@@ -12,7 +12,12 @@ import {
   NavLink,
   Row,
   TabContent,
-  TabPane
+  TabPane,
+  Modal,
+  ModalHeader,
+  ModalBody,
+  ModalFooter,
+  Button
 } from "reactstrap"
 import BreadCrumb from "../../components/BreadCrumb"
 import { init } from "../../context/AuthContext"
@@ -20,6 +25,7 @@ import { useAuth } from "../../hooks/useAuth"
 import { userService } from "../../services/user-service"
 import ChangePassword from "./ChangePassword"
 import ProfileDetail from "./ProfileDetail"
+import qrUpgradePro from "../../assets/images/ExampleCode.png"
 
 const Profile = () => {
   document.title = "Thông tin cá nhân | MyAIS"
@@ -27,6 +33,7 @@ const Profile = () => {
   const [activeTab, setActiveTab] = useState("1")
   const planType = user?.planType ?? user?.PlanType ?? "Free"
   const [isUpgrading, setIsUpgrading] = useState(false)
+  const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false)
 
   const tabChange = (tab) => {
     if (activeTab !== tab) setActiveTab(tab)
@@ -41,8 +48,8 @@ const Profile = () => {
       const res = await userService.getUserInfo()
       dispatch(init({ isAuthenticated: true, user: res }))
     } catch (err) {
-      console.log("error: ", error)
-      toast.error(err.message)
+      console.log("error: ", err)
+      toast.error(err.message || "Không lấy được thông tin người dùng")
     }
   }
 
@@ -51,6 +58,12 @@ const Profile = () => {
       setIsUpgrading(true)
       const res = await userService.upgradeMyPlanToPro(1)
       toast.success("Đã gửi yêu cầu nâng cấp Pro. Nếu chưa thấy hiệu lực, vui lòng đăng nhập lại.")
+
+      // load lại thông tin user
+      await getProfile()
+
+      // đóng modal
+      setIsUpgradeModalOpen(false)
     } catch (err) {
       console.error(err)
       toast.error("Nâng cấp Pro thất bại, vui lòng thử lại.")
@@ -58,7 +71,6 @@ const Profile = () => {
       setIsUpgrading(false)
     }
   }
-
   return (
     <React.Fragment>
       <div className="page-content" style={{marginTop: '100px'}}>
@@ -75,13 +87,13 @@ const Profile = () => {
                     </p>
                   </div>
                   {planType === "Free" ? (
-                    <button
-                      className="btn btn-primary"
-                      onClick={handleUpgradeToPro}
+                    <Button
+                      color="primary"
+                      onClick={() => setIsUpgradeModalOpen(true)}
                       disabled={isUpgrading}
                     >
                       {isUpgrading ? "Đang nâng cấp..." : "Nâng cấp lên Pro"}
-                    </button>
+                    </Button>
                   ) : (
                     <span className="badge bg-success">Tài khoản Pro</span>
                   )}
@@ -137,6 +149,47 @@ const Profile = () => {
             </Col>
           </Row>
         </Container>
+        <Modal
+          isOpen={isUpgradeModalOpen}
+          toggle={() => !isUpgrading && setIsUpgradeModalOpen(false)}
+          centered
+        >
+          <ModalHeader toggle={() => !isUpgrading && setIsUpgradeModalOpen(false)}>
+            Nâng cấp lên gói Pro
+          </ModalHeader>
+          <ModalBody className="text-center">
+            <p className="mb-3">
+              Vui lòng quét mã QR bên dưới để thanh toán gói <b>MyAIS Pro</b>.
+              Sau khi thanh toán xong, bấm nút <b>"Tôi đã thanh toán"</b> để kích hoạt.
+            </p>
+            <div className="d-flex justify-content-center mb-3">
+              <img
+                src={qrUpgradePro}
+                alt="QR thanh toán Pro"
+                style={{ maxWidth: "260px", width: "100%", height: "auto", borderRadius: 8, boxShadow: "0 0 10px rgba(0,0,0,0.15)" }}
+              />
+            </div>
+            <p className="text-muted" style={{ fontSize: 12 }}>
+              * Nếu gói Pro chưa được kích hoạt ngay, hãy thử đăng xuất và đăng nhập lại sau vài phút.
+            </p>
+          </ModalBody>
+          <ModalFooter className="justify-content-between">
+            <Button
+              color="secondary"
+              onClick={() => setIsUpgradeModalOpen(false)}
+              disabled={isUpgrading}
+            >
+              Hủy
+            </Button>
+            <Button
+              color="primary"
+              onClick={handleUpgradeToPro}
+              disabled={isUpgrading}
+            >
+              {isUpgrading ? "Đang kiểm tra thanh toán..." : "Tôi đã thanh toán"}
+            </Button>
+          </ModalFooter>
+        </Modal>
       </div>
     </React.Fragment>
   )

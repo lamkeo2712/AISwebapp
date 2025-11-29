@@ -77,7 +77,7 @@ const HistoryVessel = ({ onAction1 = noop, onAction2 = noop, onAction3 = noop })
                   >
                     <i className="ri-time-line me-1"></i> Quản lý tàu theo dõi
                   </Button>
-                  <Button
+                  {/* <Button
                     color="light"
                     className="w-100"
                     style={{ height: 40 }}
@@ -87,7 +87,7 @@ const HistoryVessel = ({ onAction1 = noop, onAction2 = noop, onAction3 = noop })
                   >
                     <i className="ri-time-line me-1"></i> update sau
 
-                  </Button>
+                  </Button> */}
                   </>
                   ) : (
                   <>
@@ -111,7 +111,7 @@ const HistoryVessel = ({ onAction1 = noop, onAction2 = noop, onAction3 = noop })
                   >
                     <i className="ri-time-line me-1"></i> Quản lý tàu theo dõi (gói Pro)
                   </Button>
-                  <Button
+                  {/* <Button
                     color="light"
                     className="w-100"
                     style={{ height: 40 }}
@@ -121,7 +121,7 @@ const HistoryVessel = ({ onAction1 = noop, onAction2 = noop, onAction3 = noop })
                   >
                     <i className="ri-time-line me-1"></i> update sau (gói Pro)
 
-                  </Button>
+                  </Button> */}
                   </>
 
                   )}
