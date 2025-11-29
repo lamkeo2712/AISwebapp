@@ -43,6 +43,25 @@ const MAP_STYLES = {
   })
 }
 
+const VIRTUAL_ATON_STYLE = new Style({
+  zIndex: 1000,
+  image: new Icon({
+    src:
+      "data:image/svg+xml;utf8," +
+      encodeURIComponent(`
+        <svg width="12" height="12" viewBox="0 0 12 12" xmlns="http://www.w3.org/2000/svg">
+          <rect width="12" height="12" stroke="blue" fill="#f3e3e3" stroke-width="2"/>
+          <circle cx="${12 / 2}" cy="${12 / 2}" r="2" fill="blue" stroke="blue" stroke-width="1"/>
+        </svg>
+      `),
+    anchor: [0.5, 0.5],
+    anchorXUnits: "fraction",
+    anchorYUnits: "fraction",
+    scale: 0.8,
+    rotation: 45 * (Math.PI / 180)
+  }),
+})
+
 const toDMS = (lat, lon) => {
   if (!Number.isFinite(lat) || !Number.isFinite(lon)) return "N/A"
   const f = (v, pos, neg) => {
@@ -202,7 +221,7 @@ const TrackPopup = ({
         </>
         ) : (
         <>
-        <p><b>Loại phao:</b> {ship.AidType}</p>
+        <p><b>Loại phao:</b> {ship.AidType} {ship.IsVirtual ? "(Virtual AtoN)" :""}</p>
         </>
         )}
         <p><b>Vị trí:</b> {toDMS(ship.Latitude, ship.Longitude)}</p>
@@ -284,6 +303,7 @@ const AISMap = () => {
   const zonesSource = useMemo(() => new VectorSource(), [])
   const zonesLayerRef = useRef(null)
   const mousePosControlRef = useRef(null)
+  const [virtualAtons, setVirtualAtons] = useState({})
   const [isLoading, setIsLoading] = useState(false)
   const [viewingRoute, setViewingRoute] = useState(null)
   const [clickPosition, setClickPosition] = useState(null)
@@ -336,7 +356,8 @@ const AISMap = () => {
   const vesselList = useAisStore((s) => s.vesselList)
   const setVesselList = useAisStore((s) => s.setVesselList)
   const thamSoTau = useAisStore((s) => s.thamSoTau)
-
+  const setSelectedPath = useAisStore((s) => s.setSelectedPath)
+  const selectedPath = useAisStore((s) => s.selectedPath)
   // Listen for goto/track events from UI to center map and set selected vessel
   useEffect(() => {
     const handler = (e) => {
@@ -370,6 +391,54 @@ const AISMap = () => {
     }
   }, [setSelectedVessel, setClickPosition])
 
+  useEffect(() => {
+    const handleUpdate = (e) => {
+      const detail = e?.detail || {}
+
+      const MMSI = detail.mmsi || detail.MMSI
+      const Latitude = Number(detail.lat ?? detail.Latitude)
+      const Longitude = Number(detail.lon ?? detail.Longitude)
+      const VesselName = detail.name || detail.BeaconName || detail.VesselName || mmsi
+      const AidType = detail.AidType
+      const AidTypeID = detail.AidTypeID
+      const DateTimeUTC = detail.DateTimeUTC
+
+      if (!MMSI || !Number.isFinite(Latitude) || !Number.isFinite(Longitude)) {
+        console.warn("[AISMap] virtual-aton-update dữ liệu không hợp lệ:", {
+          MMSI,
+          Latitude,
+          Longitude,
+        })
+        return
+      }
+
+      setVirtualAtons((prev) => ({
+        ...prev,
+        [String(MMSI)]: { MMSI: String(MMSI), Latitude, Longitude, VesselName, AidType, AidTypeID, DateTimeUTC, IsVirtual: 1 },
+      }))
+    }
+
+    const handleRemove = (e) => {
+      const detail = e?.detail || {}
+      const mmsi = detail.mmsi || detail.MMSI
+
+      if (!mmsi) return
+      setVirtualAtons((prev) => {
+        const next = { ...prev }
+        delete next[String(mmsi)]
+        return next
+      })
+    }
+
+    window.addEventListener("virtual-aton-update", handleUpdate)
+    window.addEventListener("virtual-aton-remove", handleRemove)
+
+    return () => {
+      window.removeEventListener("virtual-aton-update", handleUpdate)
+      window.removeEventListener("virtual-aton-remove", handleRemove)
+    }
+  }, [])
+
   const vectorSource = useMemo(() => new VectorSource(), [])
   const trackSource = useMemo(() => new VectorSource(), []) // ★ CHANGED: nguồn tuyến riêng
   const heatmapSource = useMemo(() => new VectorSource(), [])
@@ -377,7 +446,9 @@ const AISMap = () => {
   const startDrawingZone = useAisStore(s => s.startDrawingZone)
   const stopDrawingZone = useAisStore(s => s.stopDrawingZone)
   const setPolygonCoords = useAisStore(s => s.setPolygonCoords)
+  const virtualAtonSource = useMemo(() => new VectorSource(), [])
 
+  const virtualAtonLayerRef = useRef(null)
   const shipsLayerRef = useRef(null) // để thay đổi base layer URL
   const vesselsLayerRef = useRef(null) // layer icon tàu
   const heatmapLayerRef = useRef(null) 
@@ -408,10 +479,6 @@ const AISMap = () => {
         const f = new Feature({
         geometry: new Point(fromLonLat([lon, lat])),
         })
-        // const sog = Number(data.SpeedOverGround)
-        // if (Number.isFinite(sog)) {
-        // f.set("weight", Math.min(1, sog / 20)) // 20 knots = full đỏ
-        // }
         heatmapSource.addFeature(f)
         }
       })
@@ -437,8 +504,13 @@ const AISMap = () => {
       try {
         const response = await vesselService.getVesselList(thamSoObject)
         const vessels = response?.DM_Tau || []
+        const currentPath = useAisStore.getState().selectedPath;
         setVesselList(vessels)
         renderVessels(vessels)
+        let haveVessel = (vessels || []).some(t => String(t.MMSI) === String(currentPath.vessel.MMSI))
+        if(haveVessel){
+          getVesselRoute(currentPath.vessel,false, currentPath.hours)
+        }
       } catch (error) {
         console.error("Error fetching vessel list:", error)
         toast.error("Có lỗi xảy ra khi tải danh sách tàu")
@@ -581,6 +653,7 @@ const AISMap = () => {
   
       // 0 = clear route
       if (durationInHours === 0) {
+        setSelectedPath({},0)
         setViewingRoute(null);
         vectorSource
           .getFeatures()
@@ -590,9 +663,10 @@ const AISMap = () => {
       }
   
       // gọi API hành trình theo MMSI + giờ (logic sẵn có của bạn)
+      setSelectedPath(ship,durationInHours)
       await getVesselRoute(ship, true, durationInHours);
     },
-    [vectorSource, getVesselRoute]
+    [vectorSource, getVesselRoute, setSelectedPath]
   );
 
   useEffect(() => {
@@ -635,6 +709,13 @@ const AISMap = () => {
       zIndex: 20
     })
     zonesLayerRef.current = zonesLayer
+
+    const virtualAtonLayer = new VectorLayer({
+      source: virtualAtonSource,  
+      zIndex: 10,
+    })
+    virtualAtonLayerRef.current = virtualAtonLayer
+
     const map = new Map({
       target: mapRef.current,
       layers: [
@@ -645,8 +726,9 @@ const AISMap = () => {
           wrapX: true
         }),
         vesselsLayer,
+        virtualAtonLayer,
         heatmapLayer,
-        trackLayer // để dành nếu bạn muốn tách route riêng; hiện tại route đang add vào vectorSource
+        trackLayer
       ],
       view: new View({ center: fromLonLat(INITIAL_CENTER), zoom: INITIAL_ZOOM, minZoom: 6 })
     })
@@ -663,6 +745,9 @@ const AISMap = () => {
       // Ẩn icon tàu khi zoom xa (hiện heatmap)
       if (vesselsLayerRef.current) {
         vesselsLayerRef.current.setVisible(!showHeat)
+      }
+      if (virtualAtonLayerRef.current) {
+        virtualAtonLayerRef.current.setVisible(!showHeat)
       }
     }
 
@@ -722,7 +807,7 @@ const AISMap = () => {
     map.on("singleclick", (event) => {
       const feat = map.forEachFeatureAtPixel(
         event.pixel,
-        (f) => (f.get("type") === "vessel" ? f : undefined),
+        (f) => (f.get("type") === "vessel" || f.get("type") === "virtual-aton"? f : undefined),
         { hitTolerance: 5 }
       )
       if (feat) {
@@ -752,8 +837,8 @@ const AISMap = () => {
             <strong>Tàu:</strong> ${d.vesselName ?? "N/A"}<br/>
             <strong>Thời gian:</strong> ${d.datetimeutc ? new Date(d.datetimeutc.slice(0, 19)).toLocaleString("vi-VN") : "N/A"}<br/>
             <strong>Vị trí:</strong> ${toDMS(d.latitude, d.longitude)}<br/>
-            <strong>Hướng:</strong> ${Number.isFinite(d.cog) ? d.cog + "°" : "N/A"}<br/>
-            <strong>Tốc độ:</strong> ${Number.isFinite(d.sog) ? d.sog + " knots" : "N/A"}
+            <strong>Hướng:</strong> ${Number.isFinite(d.cog) ? d.cog.toFixed(1) + "°" : "N/A"}<br/>
+            <strong>Tốc độ:</strong> ${Number.isFinite(d.sog) ? d.sog.toFixed(1) + " knots" : "N/A"}
           </div>`
         popupOverlay.setPosition(event.coordinate)
       } else {
@@ -796,7 +881,7 @@ const AISMap = () => {
       map.setTarget(undefined)
       try { contextRootRef.current?.unmount(); } catch {}
     }
-  }, [ vectorSource, trackSource, mapType, getVesselList, heatmapSource])
+  }, [ vectorSource, trackSource, mapType, getVesselList, heatmapSource, virtualAtonSource])
 
   useEffect(() => {
     if (!contextRootRef.current) return
@@ -841,6 +926,26 @@ const AISMap = () => {
   }, [mapType])
 
 
+
+  useEffect(() => {
+
+    virtualAtonSource.clear()
+
+    Object.values(virtualAtons).forEach((aton) => {
+      const lat = Number(aton.Latitude)
+      const lon = Number(aton.Longitude)
+      if (!Number.isFinite(lat) || !Number.isFinite(lon)) return
+
+
+      const feature = new Feature({
+        geometry: new Point(fromLonLat([lon, lat])),
+        type: "virtual-aton",
+        data: aton,
+      })
+      feature.setStyle(VIRTUAL_ATON_STYLE)
+      virtualAtonSource.addFeature(feature)
+    })
+  }, [virtualAtons, virtualAtonSource])
 
   return (
     <React.Fragment>

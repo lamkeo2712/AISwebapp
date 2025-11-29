@@ -35,41 +35,56 @@ instance.interceptors.response.use(
   },
   async (error) => {
     const originalRequest = error.config
+    if (!error.response) {
+      return Promise.reject(error)
+    }
     if (
       originalRequest &&
+      error.response.status === 401 &&
+      !originalRequest._retry &&
       !originalRequest.url.includes("/login") &&
-      error.response?.status === 401 &&
-      !originalRequest._retry
+      !originalRequest.url.includes("/refresh")
     ) {
       originalRequest._retry = true
-      originalRequest._retryCount = originalRequest._retryCount || 0
-
-      if (originalRequest._retryCount >= 3) {
-        deleteAccessToken()
-        deleteRefreshToken()
-        return Promise.reject(error)
-      }
-
-      originalRequest._retryCount += 1
 
       try {
         const refreshToken = getRefreshToken()
-        if (refreshToken && isTokenValid(refreshToken)) {
-          const response = await userService.refreshToken(refreshToken || "")
-          const { token } = response.data
-          setAccessToken(token)
 
-          // Retry the original request with the new token
-          originalRequest.headers.Authorization = `Bearer ${token}`
-          return instance(originalRequest)
-        } else {
+        if (!refreshToken) {
           deleteAccessToken()
           deleteRefreshToken()
-          throw new Error("RefreshToken is invalid")
+          return Promise.reject(error)
         }
-      } catch (error) {
-        console.log("🚀 ~ error:", error)
-        return Promise.reject(error)
+
+        const baseURL = instance.defaults.baseURL || import.meta.env.VITE_API_URL
+
+        const refreshResponse = await axios.post(
+          `${baseURL}/api/Authen/refresh`,
+          null,
+          {
+            params: { refreshToken }
+          }
+        )
+
+        const { accessToken: newAccessToken } = refreshResponse.data || {}
+
+        if (!newAccessToken) {
+          deleteAccessToken()
+          deleteRefreshToken()
+          return Promise.reject(error)
+        }
+
+        setAccessToken(newAccessToken)
+
+        originalRequest.headers = originalRequest.headers || {}
+        originalRequest.headers.Authorization = `Bearer ${newAccessToken}`
+
+        return instance(originalRequest)
+      } catch (err) {
+        console.log("🚀 ~ refresh token error:", err)
+        deleteAccessToken()
+        deleteRefreshToken()
+        return Promise.reject(err)
       }
     }
     return Promise.reject(error)

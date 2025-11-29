@@ -44,7 +44,7 @@ const HistoryVessel = ({ onAction1 = noop, onAction2 = noop, onAction3 = noop })
         className="topbar-head-dropdown ms-1 header-item bg-primary"
       >
         <DropdownToggle className="btn btn-primary bg-primary fs-16 text-white" style={{ borderColor: "transparent" }}>
-          Lịch sử
+          Theo dõi
           <i className="ri-arrow-down-s-line align-middle"></i>
         </DropdownToggle>
 

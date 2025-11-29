@@ -24,7 +24,7 @@ const SearchVessel = ({ onVesselSelect }) => {
       getVesselList({})
     } else {
       getVesselList({
-        [searchType]: searchType == "MMSI"? [searchValue] : searchValue
+        [searchType]: searchType == "MMSI"? searchValue : searchValue
       })
     }
   }

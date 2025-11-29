@@ -5,8 +5,15 @@ const useAisStore = create((set) => ({
   selectedVessel: null,
   loaiTauLOV: [],
   thamSoObject: {},
+  selectedPath: {
+    vessel: {},
+    hours: 0
+  },
   setSelectedVessel: (value) => {
     set(() => ({ selectedVessel: value }))
+  },
+  setSelectedPath: (vessel, hours) => {
+    set(() => ({ selectedPath: {vessel: vessel, hours: hours} }))
   },
   setVesselList: (value) => {
     set(() => ({ vesselList: value }))
