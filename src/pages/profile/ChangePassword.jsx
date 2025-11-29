@@ -9,18 +9,18 @@ import { userService } from "../../services/user-service";
 
 const schema = yup
   .object({
-    oldPassword: yup.string().required("Mật khẩu hiện tại là bắt buộc").matches("^(?:.{6,30}|)$", "Mật khẩu có độ dài từ 6-30 ký tự"),
-    newPassword: yup.string().required("Mật khẩu mới là bắt buộc").matches("^(?:.{6,30}|)$", "Mật khẩu có độ dài từ 6-30 ký tự"),
+    CurrentPassword: yup.string().required("Mật khẩu hiện tại là bắt buộc").matches("^(?:.{6,30}|)$", "Mật khẩu có độ dài từ 6-30 ký tự"),
+    NewPassword: yup.string().required("Mật khẩu mới là bắt buộc").matches("^(?:.{6,30}|)$", "Mật khẩu có độ dài từ 6-30 ký tự"),
     confirmPassword: yup
       .string()
       .required("Xác nhận mật khẩu là bắt buộc")
-      .oneOf([yup.ref("newPassword"), null], "Mật khẩu xác nhận không khớp")
+      .oneOf([yup.ref("NewPassword"), null], "Mật khẩu xác nhận không khớp")
   })
   .required();
 
 const defaultValues = {
-  oldPassword: "",
-  newPassword: "",
+  CurrentPassword: "",
+  NewPassword: "",
   confirmPassword: "",
 };
 
@@ -59,49 +59,49 @@ const ChangePassword = () => {
       <Row className="g-2">
         <Col lg={4}>
           <div>
-            <Label htmlFor="oldPassword-field" className="form-label">
+            <Label htmlFor="CurrentPassword-field" className="form-label">
               Mật khẩu hiện tại
             </Label>
             <Controller
-              name="oldPassword"
+              name="CurrentPassword"
               control={control}
               render={({ field: { onChange, value } }) => (
                 <Input
                   type="password"
-                  id="oldPassword-field"
+                  id="CurrentPassword-field"
                   className="form-control"
                   placeholder="**********"
                   onChange={onChange}
                   value={value || ""}
-                  invalid={!!errors.oldPassword}
+                  invalid={!!errors.CurrentPassword}
                 />
               )}
             />
-            {errors.oldPassword && <div className="invalid-feedback">{errors.oldPassword.message}</div>}
+            {errors.CurrentPassword && <div className="invalid-feedback">{errors.CurrentPassword.message}</div>}
           </div>
         </Col>
 
         <Col lg={4}>
           <div>
-            <Label htmlFor="newPassword-field" className="form-label">
+            <Label htmlFor="NewPassword-field" className="form-label">
               Mật khẩu mới
             </Label>
             <Controller
-              name="newPassword"
+              name="NewPassword"
               control={control}
               render={({ field: { onChange, value } }) => (
                 <Input
                   type="password"
-                  id="newPassword-field"
+                  id="NewPassword-field"
                   className="form-control"
                   placeholder="**********"
                   onChange={onChange}
                   value={value || ""}
-                  invalid={!!errors.newPassword}
+                  invalid={!!errors.NewPassword}
                 />
               )}
             />
-            {errors.newPassword && <div className="invalid-feedback">{errors.newPassword.message}</div>}
+            {errors.NewPassword && <div className="invalid-feedback">{errors.NewPassword.message}</div>}
           </div>
         </Col>
 

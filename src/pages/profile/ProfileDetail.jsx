@@ -11,22 +11,20 @@ import { userService } from "../../services/user-service"
 const schema = yup
   .object({
     username: yup.string(),
-    fullName: yup.string().nullable(),
-    email: yup
+    HoTen: yup.string().nullable(),
+    Email: yup
       .string()
       .required("Email là bắt buộc")
       .matches("^[\\w-\\.]+@([\\w-]+\\.)+[\\w-]{2,4}$", "Email không hợp lệ"),
-    phone: yup.string().nullable(),
-    address: yup.string().nullable()
+    DienThoai: yup.string().nullable()
   })
   .required()
 
 const defaultValues = {
   username: "",
-  fullName: null,
-  email: "",
-  phone: null,
-  address: null
+  HoTen: null,
+  Email: "",
+  DienThoai: null
 }
 
 const ProfileDetail = () => {
@@ -91,94 +89,71 @@ const ProfileDetail = () => {
         </Col>
         <Col lg={6}>
           <div>
-            <Label htmlFor="fullName-field" className="form-label">
+            <Label htmlFor="HoTen-field" className="form-label">
               Họ và tên
             </Label>
             <Controller
-              name="fullName"
+              name="HoTen"
               control={control}
               render={({ field: { onChange, value } }) => (
                 <Input
                   type="text"
-                  id="fullName-field"
+                  id="HoTen-field"
                   className="form-control"
                   placeholder="Nhập họ và tên"
                   onChange={onChange}
                   value={value || ""}
-                  invalid={!!errors.fullName}
+                  invalid={!!errors.HoTen}
                 />
               )}
             />
-            {errors.fullName && <div className="invalid-feedback">{errors.fullName.message}</div>}
+            {errors.HoTen && <div className="invalid-feedback">{errors.HoTen.message}</div>}
           </div>
         </Col>
         <Col lg={6}>
           <div>
-            <Label htmlFor="email-field" className="form-label">
+            <Label htmlFor="Email-field" className="form-label">
               Địa chỉ email
             </Label>
             <Controller
-              name="email"
+              name="Email"
               control={control}
               render={({ field: { onChange, value } }) => (
                 <Input
                   type="text"
-                  id="email-field"
+                  id="Email-field"
                   className="form-control"
                   placeholder="Nhập địa chỉ email"
                   onChange={onChange}
                   value={value || ""}
-                  invalid={!!errors.email}
+                  invalid={!!errors.Email}
                 />
               )}
             />
-            {errors.email && <div className="invalid-feedback">{errors.email.message}</div>}
+            {errors.Email && <div className="invalid-feedback">{errors.Email.message}</div>}
           </div>
         </Col>
         <Col lg={6}>
           <div>
-            <Label htmlFor="phone-field" className="form-label">
+            <Label htmlFor="DienThoai-field" className="form-label">
               Số điện thoại
             </Label>
             <Controller
-              name="phone"
+              name="DienThoai"
               control={control}
               render={({ field: { onChange, value } }) => (
                 <Input
                   type="text"
-                  id="phone-field"
+                  id="DienThoai-field"
                   className="form-control"
                   placeholder="Nhập số điện thoại"
                   onChange={onChange}
                   value={value || ""}
-                  invalid={!!errors.phone}
+                  invalid={!!errors.DienThoai}
                 />
               )}
             />
-            {errors.phone && <div className="invalid-feedback">{errors.phone.message}</div>}
-          </div>
-        </Col>
-        <Col lg={12}>
-          <div>
-            <Label htmlFor="address-field" className="form-label">
-              Địa chỉ
-            </Label>
-            <Controller
-              name="address"
-              control={control}
-              render={({ field: { onChange, value } }) => (
-                <Input
-                  type="text"
-                  id="address-field"
-                  className="form-control"
-                  placeholder="Nhập địa chỉ"
-                  onChange={onChange}
-                  value={value || ""}
-                  invalid={!!errors.address}
-                />
-              )}
-            />
-            {errors.address && <div className="invalid-feedback">{errors.address.message}</div>}
+            {errors.DienThoai && <div className="invalid-feedback">{errors.DienThoai.message}</div>}
           </div>
         </Col>
         <Col lg={12}>

@@ -23,10 +23,10 @@ class UserService {
   }
 
   updatePwd = async (data) => {
-    await apiHelper.post(`/api/user/profile/updatePwd`, data)
+    await apiHelper.post(`/api/Authen/User/updatePwd`, data)
   }
   editProfile = async (data) => {
-    await apiHelper.post(`/api/user/profile/edit`, data)
+    await apiHelper.post(`/api/Authen/User/Edit`, data)
   }
 
   /* user */
